@@ -95,10 +95,50 @@ later, because the snapshots are already written.
 
 ```bash
 uv venv && uv pip install -e '.[dev]'
-.venv/bin/python -m pytest -q          # 17 passed
+.venv/bin/python -m pytest
 ```
 
 Fast because the design allows it. `catalog_config` and the assertion builders are pure — they take
 arguments and return settings or SQL — so the branches that matter are tested with no Spark session
-and no AWS account. What that cannot check is whether the SQL is correct *against Iceberg*, which is
-what the integration tests are for.
+and no AWS account.
+
+Two markers are deselected unless their flag is passed, so the default run needs nothing beyond this
+repo.
+
+| Marker | Flag | Needs |
+| --- | --- | --- |
+| `integration` | `--run-integration` | An AWS account |
+| `local_stack` | `--run-local-stack` | The local lakehouse below |
+
+Deselected rather than skipped. A skip is what a test reports once it has started and found what it
+needs is absent, and a suite green because everything skipped reads exactly like one where
+everything ran.
+
+## The local lakehouse
+
+What the pure tests cannot reach is whether those settings build a session Iceberg accepts. That
+needs a catalog and object storage. `tests/local-stack` is both, and one command is the whole
+workflow:
+
+```bash
+cd tests/local-stack
+docker compose run --rm spark pytest --run-local-stack
+```
+
+`run` starts everything the job depends on, then runs the suite inside a container pinned to the
+Glue 5.0 runtime. `docker compose down -v` removes the stack and everything in it.
+
+| Service | Serving |
+| --- | --- |
+| MinIO | `s3://lakeworks-local-lake/`, with a console on `:9001` |
+| Iceberg REST catalog | The protocol Glue speaks, on `:8181` |
+| Spark | Spark 3.5.4, Python 3.11, Java 17 — built from `tests/local-stack/Dockerfile` |
+
+**The Iceberg client is pinned to the version Glue 5.0 ships**, for the reason the Spark pin exists:
+a client ahead of it accepts procedure syntax and table properties Glue rejects. The REST server
+runs one minor ahead, because Iceberg publishes no image at that version. The client is where the
+pin has to hold, since its library decides what a job may write.
+
+Nothing here reaches AWS, and no credentials are needed. The warehouse is `s3://` rather than
+`file://` on purpose — `file://` would exercise a different Iceberg code path than the one that runs
+in Glue.
