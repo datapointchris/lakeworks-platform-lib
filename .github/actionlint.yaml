@@ -1,7 +1,0 @@
-# forge-toolchain: 19
-# Labels actionlint cannot discover, because they belong to a self-hosted
-# runner rather than to one of GitHub's hosted images. Without this every
-# runs-on naming one is reported as a typo and the actionlint hook fails.
-self-hosted-runner:
-  labels:
-    - private-ci
