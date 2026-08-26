@@ -129,22 +129,20 @@ repos:
         #
         # `go.mod` sits beside `go.sum` for the same reason one step earlier: it
         # is mostly module paths, and a path is a third party's name rather than
-        # prose anyone here can correct. Adding sqlc to fleet pulled in a
-        # `sqlc-dev` module whose name codespell wants hyphenated, and no edit
-        # could fix it — the next `go mod tidy` writes it straight back. Naming
-        # it here would trip this hook on this very file, which is how the rule
-        # was found.
+        # prose anyone here can correct. A transitive dependency can carry a
+        # module name codespell wants spelled differently, and no edit fixes it —
+        # the next `go mod tidy` writes it straight back. Naming such a module
+        # here would trip this hook on this very file.
         exclude: '(^|/)(.*-lock\.json|.*\.lock|uv\.lock|package-lock\.json|go\.sum|go\.mod|secrets?[^/]*\.(ya?ml|env|json)|.*\.enc\.[^/]+)$'
 
 # generated:refcheck - Reference checking
   #
   # `--moves` is what earns this a place on every commit, and running without
-  # it would be close to running nothing. Measured across all 49 active repos:
-  # the whole-tree half — every `source` and `bash` target — found zero real
-  # errors, because the portfolio is already clean. The moves half asks the
-  # question a rename actually leaves behind, for each one in the changeset,
-  # and that is where the findings are: call sites and documented commands
-  # still naming a path that moved.
+  # it would be close to running nothing. The whole-tree half — every `source`
+  # and `bash` target — finds nothing on a tree that is already clean, which is
+  # the normal state. The moves half asks the question a rename actually leaves
+  # behind, for each one in the changeset, and that is where the findings are:
+  # call sites and documented commands still naming a path that moved.
   #
   # Deliberately no path spelled out above. A comment naming a real old path
   # is itself a hit for it, in every repo this block is deployed to.
@@ -155,7 +153,7 @@ repos:
   # own broken *imports*, which is a different question from what a doc, a
   # Dockerfile or a shell wrapper still says.
   #
-  # No --strict: one advisory warning across the whole fleet, and a warning is
+  # No --strict: one advisory warning across every repo, and a warning is
   # about fragility rather than breakage.
   - repo: https://github.com/datapointchris/refcheck
     rev: v0.6.0
@@ -191,6 +189,24 @@ repos:
         language: system
         types: [python]
         pass_filenames: false
+
+# generated:docker - Docker
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.14.0
+    hooks:
+      # DL3018 is DL3008's apk counterpart — the same "pin every package
+      # version" rule, for the five alpine-based images here. Ignoring one and
+      # enforcing the other only means the Debian images pass and the Alpine
+      # ones do not; pinning an apk version also breaks on the next base image
+      # bump, which is why DL3008 was ignored to begin with.
+      #
+      # The exclude is not about rules. hadolint matches on the Dockerfile name,
+      # and BuildKit's per-file ignore list is named <dockerfile>.dockerignore —
+      # learning has web/Dockerfile.dockerignore — so hadolint tried to parse an
+      # ignore list as a Dockerfile and failed on its first glob.
+      - id: hadolint-docker
+        args: ["--ignore", "DL3008", "--ignore", "DL3018", "--ignore", "DL4006"]
+        exclude: '\.dockerignore$'
 
 # generated:github-actions - GitHub Actions
   - repo: https://github.com/rhysd/actionlint

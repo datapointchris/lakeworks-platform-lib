@@ -1,0 +1,5 @@
+# The build context is the repository root, and the image needs exactly one file from it. Everything
+# else — `.git`, `.venv`, the source tree that arrives as a bind mount at run time — would be sent to
+# the daemon on every build and used by none of it.
+*
+!pyproject.toml

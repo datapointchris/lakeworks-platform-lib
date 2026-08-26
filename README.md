@@ -34,7 +34,7 @@ three:
 
 | Target | Catalog | Warehouse |
 | --- | --- | --- |
-| `local` | Iceberg REST (Lakekeeper or the Apache fixture) | MinIO, path-style access |
+| `local` | Iceberg REST (the Apache fixture, in `tests/local-stack`) | MinIO, path-style access |
 | `glue` | `GlueCatalog` | S3 |
 | `emr` | `GlueCatalog` | S3 |
 
@@ -60,10 +60,13 @@ assertions = [
     iceberg.rows_arrived(),
 ]
 
-iceberg.stamp_run_id(session, 'lakeworks_dev_animal_silver.animal_event')
-with iceberg.write_audit_publish(session, 'lakeworks_dev_animal_silver.animal_event', assertions) as staged:
-    events.writeTo(staged).append()
+table = 'lakeworks_dev_animal_silver.animal_event'
+with iceberg.write_audit_publish(session, table, assertions):
+    events.writeTo(table).options(**iceberg.run_id_options()).append()
 ```
+
+Job code names the table it always names. `spark.wap.branch` redirects the write to the staging
+branch, so there is no branch handling in the pipeline at all.
 
 On a clean audit the branch fast-forwards into `main` and is dropped. On a failure it raises
 `AuditFailed`, **retains the branch for inspection**, and leaves `main` untouched.
@@ -85,8 +88,13 @@ it inflates metrics, and it is usually found weeks later by someone who does not
 ## Run ids
 
 One id from the Step Functions execution reaches every layer — log lines, the Iceberg snapshot
-summary, and the output table's `_source_run_id`. `stamp_run_id` writes it as a table property so
-the next snapshot carries it.
+summary, and the output table's `_source_run_id`. `run_id_options()` returns the write options that
+put it in the summary of the snapshot that write commits.
+
+**Provenance is set per write, not once per table.** Iceberg builds a snapshot's extra summary
+entries from write options prefixed `snapshot-property.`, and from nowhere else. A table property is
+never copied into a snapshot summary, so a call that sets one records the last run to touch the
+table and tells you nothing about any row in it.
 
 That link is what makes any row traceable back to the run that produced it. It cannot be added
 later, because the snapshots are already written.
@@ -95,10 +103,54 @@ later, because the snapshots are already written.
 
 ```bash
 uv venv && uv pip install -e '.[dev]'
-.venv/bin/python -m pytest -q          # 17 passed
+.venv/bin/python -m pytest
 ```
 
 Fast because the design allows it. `catalog_config` and the assertion builders are pure — they take
 arguments and return settings or SQL — so the branches that matter are tested with no Spark session
-and no AWS account. What that cannot check is whether the SQL is correct *against Iceberg*, which is
-what the integration tests are for.
+and no AWS account.
+
+Two markers are deselected unless their flag is passed, so the default run needs nothing beyond this
+repo.
+
+| Marker | Flag | Needs | Tests carrying it |
+| --- | --- | --- | --- |
+| `local_stack` | `--run-local-stack` | The local lakehouse below | All of `tests/test_local_stack.py` |
+| `integration` | `--run-integration` | An AWS account | None yet |
+
+`integration` is registered and nothing carries it, so passing its flag today changes nothing about
+what runs. It is named here because a marker that exists and selects nothing reads, from a green
+run, exactly like coverage.
+
+Deselected rather than skipped. A skip is what a test reports once it has started and found what it
+needs is absent, and a suite green because everything skipped reads exactly like one where
+everything ran.
+
+## The local lakehouse
+
+What the pure tests cannot reach is whether those settings build a session Iceberg accepts. That
+needs a catalog and object storage. `tests/local-stack` is both, and one command is the whole
+workflow:
+
+```bash
+cd tests/local-stack
+docker compose run --rm spark pytest --run-local-stack
+```
+
+`run` starts everything the job depends on, then runs the suite inside a container pinned to the
+Glue 5.0 runtime. `docker compose down -v` removes the stack and everything in it.
+
+| Service | Serving |
+| --- | --- |
+| MinIO | `s3://lakeworks-local-lake/`, with a console on `:9001` |
+| Iceberg REST catalog | The protocol Glue speaks, on `:8181` |
+| Spark | Spark 3.5.4, Python 3.11, Java 17 — built from `tests/local-stack/Dockerfile` |
+
+**The Iceberg client is pinned to the version Glue 5.0 ships**, for the reason the Spark pin exists:
+a client ahead of it accepts procedure syntax and table properties Glue rejects. The REST server
+runs one minor ahead, because Iceberg publishes no image at that version. The client is where the
+pin has to hold, since its library decides what a job may write.
+
+Nothing here reaches AWS, and no credentials are needed. The warehouse is `s3://` rather than
+`file://` on purpose — `file://` would exercise a different Iceberg code path than the one that runs
+in Glue.

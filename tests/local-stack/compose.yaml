@@ -1,0 +1,117 @@
+name: lakeworks-local-lakehouse
+
+# Where this stack stops standing in for Glue, measured rather than assumed:
+#
+#   `iceberg.maintain` runs two of its three procedures. `rewrite_data_files` and
+#   `expire_snapshots` pass. `remove_orphan_files` raises
+#   `UnsupportedFileSystemException: No FileSystem for scheme "s3"`, because it lists the table
+#   directory through Hadoop's FileSystem rather than through `S3FileIO`, and no Hadoop S3
+#   filesystem is on the classpath. Unmeasured against Glue, whose runtime may map the scheme
+#   itself.
+#
+# Everything else this repository calls is exercised here. A divergence found later belongs in this
+# list, because a fixture that stands in for production is worth exactly what is known about where
+# it stops doing so.
+
+# Not secrets. MinIO is created with them on first start, nothing outside this stack can reach it,
+# and they are what makes the fixture reproducible — so they belong in its definition rather than in
+# a file a reader has to go and find.
+#
+# `S3FileIO` resolves them through the AWS SDK's default credential chain, which is the same chain
+# that finds the task role in Glue. Only what the chain finds differs between the two.
+x-aws-credentials: &aws-credentials
+  AWS_ACCESS_KEY_ID: lakeworks
+  AWS_SECRET_ACCESS_KEY: lakeworks-local
+  AWS_REGION: us-east-1
+
+services:
+
+  minio:
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    command: server /data --console-address ':9001'
+    environment:
+      MINIO_ROOT_USER: lakeworks
+      MINIO_ROOT_PASSWORD: lakeworks-local
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - minio-data:/data
+
+  # Neither store is usable as it arrives. MinIO serves no bucket until one is made, and a named
+  # volume is created owned by root while the catalog that has to write to it runs unprivileged.
+  #
+  # The retry loop doubles as the readiness gate for the whole stack. `mc alias set` fails until
+  # MinIO answers, so whatever is ordered behind this container completing has a running MinIO, a
+  # bucket inside it, and a catalog directory the catalog can open.
+  storage-init:
+    image: minio/mc:RELEASE.2025-08-13T08-35-41Z
+    depends_on:
+      - minio
+    environment:
+      <<: *aws-credentials
+    volumes:
+      - catalog-data:/catalog-data
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        waited=0
+        until mc alias set lakeworks http://minio:9000 "$$AWS_ACCESS_KEY_ID" "$$AWS_SECRET_ACCESS_KEY"; do
+          waited=$$((waited + 1))
+          if [ "$$waited" -ge 60 ]; then
+            echo "MinIO did not answer on http://minio:9000 within 60s. Check: docker compose logs minio" >&2
+            exit 1
+          fi
+          sleep 1
+        done
+        mc mb --ignore-existing lakeworks/lakeworks-local-lake
+        chown 1000:1000 /catalog-data
+
+  # Iceberg publishes no 1.7.1 image, so the server sits one minor ahead of the client. The client
+  # is where the pin has to hold: its library version decides which procedures and table properties
+  # a job may use, and that is what has to match Glue.
+  catalog:
+    image: apache/iceberg-rest-fixture:1.8.1
+    # The image runs as uid 1000, which is what `storage-init` hands the volume to.
+    depends_on:
+      storage-init:
+        condition: service_completed_successfully
+    environment:
+      <<: *aws-credentials
+      CATALOG_WAREHOUSE: s3://lakeworks-local-lake/
+      CATALOG_IO__IMPL: org.apache.iceberg.aws.s3.S3FileIO
+      CATALOG_S3_ENDPOINT: http://minio:9000
+      CATALOG_S3_PATH__STYLE__ACCESS: 'true'
+      # Backed by a file rather than the image's default in-memory store. The warehouse below it is
+      # a volume, so an in-memory catalog would forget tables whose data files survive the restart.
+      CATALOG_URI: jdbc:sqlite:file:/data/catalog.db
+    ports:
+      - '8181:8181'
+    volumes:
+      - catalog-data:/data
+
+  # Not part of the running stack — this is how a job is run against it, so `up` leaves it alone and
+  # `run` starts it along with everything it depends on.
+  spark:
+    profiles:
+      - job
+    # Rooted at the repository so the image installs from `pyproject.toml` rather than repeating its
+    # dependency list. `Dockerfile.dockerignore` narrows the context to that one file.
+    build:
+      context: ../..
+      dockerfile: tests/local-stack/Dockerfile
+    depends_on:
+      - catalog
+    environment:
+      <<: *aws-credentials
+      LAKEWORKS_TARGET: local
+      LAKEWORKS_S3_ENDPOINT: http://minio:9000
+      LAKEWORKS_CATALOG_URI: http://catalog:8181
+      LAKEWORKS_WAREHOUSE: s3://lakeworks-local-lake/
+    volumes:
+      - ../..:/opt/lakeworks
+
+volumes:
+  minio-data:
+  catalog-data:
