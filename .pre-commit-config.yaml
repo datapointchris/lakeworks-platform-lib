@@ -129,11 +129,10 @@ repos:
         #
         # `go.mod` sits beside `go.sum` for the same reason one step earlier: it
         # is mostly module paths, and a path is a third party's name rather than
-        # prose anyone here can correct. Adding sqlc to fleet pulled in a
-        # `sqlc-dev` module whose name codespell wants hyphenated, and no edit
-        # could fix it — the next `go mod tidy` writes it straight back. Naming
-        # it here would trip this hook on this very file, which is how the rule
-        # was found.
+        # prose anyone here can correct. A transitive dependency can carry a
+        # module name codespell wants spelled differently, and no edit fixes it —
+        # the next `go mod tidy` writes it straight back. Naming such a module
+        # here would trip this hook on this very file.
         exclude: '(^|/)(.*-lock\.json|.*\.lock|uv\.lock|package-lock\.json|go\.sum|go\.mod|secrets?[^/]*\.(ya?ml|env|json)|.*\.enc\.[^/]+)$'
 
 # generated:refcheck - Reference checking
@@ -155,7 +154,7 @@ repos:
   # own broken *imports*, which is a different question from what a doc, a
   # Dockerfile or a shell wrapper still says.
   #
-  # No --strict: one advisory warning across the whole fleet, and a warning is
+  # No --strict: one advisory warning across every repo, and a warning is
   # about fragility rather than breakage.
   - repo: https://github.com/datapointchris/refcheck
     rev: v0.6.0
