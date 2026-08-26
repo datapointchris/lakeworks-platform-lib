@@ -13,6 +13,7 @@ dependencies = [
 # resulting failure presents as an Iceberg bug rather than a version mismatch.
 dev = [
     "pyspark==3.5.4",
+    "httpx2>=2.12",
     "pytest>=8.0",
     "pytest-cov",
     "moto[s3,glue]>=5.0",

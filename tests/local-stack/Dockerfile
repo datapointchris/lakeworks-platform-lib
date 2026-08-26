@@ -6,13 +6,18 @@ FROM python:3.11-slim-bookworm
 # Glue 5.0 ships Iceberg 1.7.1. A local client ahead of that accepts procedure syntax and table
 # properties Glue rejects, which is the failure the Spark pin already exists to prevent.
 ARG ICEBERG_VERSION=1.7.1
-ARG SPARK_VERSION=3.5.4
 
 RUN apt-get update \
     && apt-get install --yes --no-install-recommends openjdk-17-jre-headless curl \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir "pyspark==${SPARK_VERSION}" "pytest>=8.0" "pyyaml>=6.0"
+RUN pip install --no-cache-dir uv
+
+# `pyproject.toml` is the dependency list, and this image holds no second copy of it. A package added
+# to the `dev` extra arrives here on the next build, and the pyspark pin cannot drift from the one
+# the project declares. The build context is the repository root so that this one file is reachable.
+COPY pyproject.toml ./
+RUN uv pip install --system --requirements pyproject.toml --extra dev
 
 # Into Spark's own jars directory rather than left to `spark.jars.packages`. Package resolution
 # reaches Maven on every session start, which turns building a session into a network call and lets
