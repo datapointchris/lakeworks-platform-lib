@@ -1,0 +1,106 @@
+[project]
+name = "lakeworks"
+version = "0.1.0"
+description = "The lakeworks platform library: Spark session construction, Iceberg write-audit-publish, lineage and contracts."
+requires-python = ">=3.11"          # Glue 5.0 ships Python 3.11; a higher floor cannot run there
+dependencies = [
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+# pyspark is provided by the runtime in Glue and EMR, and pinned here only so local development
+# matches Glue 5.0 exactly. A local Spark 4.x accepts different Iceberg procedure syntax, and the
+# resulting failure presents as an Iceberg bug rather than a version mismatch.
+dev = [
+    "pyspark==3.5.4",
+    "pytest>=8.0",
+    "pytest-cov",
+    "moto[s3,glue]>=5.0",
+    "ruff",
+    "pyright",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/lakeworks"]
+
+[tool.ruff]
+line-length = 140
+src = ["src"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "SIM",  # flake8-simplify
+    "I",    # isort
+]
+ignore = [
+    "SIM108",  # ternary operator — often less readable
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["lakeworks"]
+force-single-line = true
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+[tool.ruff.format]
+quote-style = "single"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+docstring-code-format = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "integration: touches real AWS. Skipped unless --run-integration is passed.",
+]
+verbosity_assertions = 2
+minversion = "8.0"
+
+[tool.mypy]
+pretty = true
+ignore_missing_imports = true
+check_untyped_defs = false
+warn_return_any = false
+
+[tool.pyright]
+typeCheckingMode = "standard"
+analyzeUnannotatedFunctions = true
+
+[tool.codespell]
+check-filenames = true
+
+[tool.forge]
+# Keys the shared toolchain standard owns, written by its generator.
+# Dropping one from the template removes it here on the next sync; a key absent
+# from this list belongs to the project and is never touched. Do not hand-edit.
+managed = [
+    ["ruff", "line-length"],
+    ["ruff", "format", "quote-style"],
+    ["ruff", "format", "indent-style"],
+    ["ruff", "format", "skip-magic-trailing-comma"],
+    ["ruff", "format", "line-ending"],
+    ["ruff", "format", "docstring-code-format"],
+    ["ruff", "lint", "select"],
+    ["ruff", "lint", "ignore"],
+    ["ruff", "lint", "isort", "force-single-line"],
+    ["ruff", "lint", "per-file-ignores", "__init__.py"],
+    ["mypy", "pretty"],
+    ["mypy", "ignore_missing_imports"],
+    ["mypy", "check_untyped_defs"],
+    ["mypy", "warn_return_any"],
+    ["pyright", "typeCheckingMode"],
+    ["pyright", "analyzeUnannotatedFunctions"],
+    ["codespell", "check-filenames"],
+    ["pytest", "ini_options", "verbosity_assertions"],
+    ["pytest", "ini_options", "minversion"],
+    ["pytest", "ini_options", "testpaths"],
+]
