@@ -1,0 +1,37 @@
+name: Local lakehouse
+
+# Separate from the validate workflow, and separate deliberately. That one is generated and stays
+# fast; this one builds an image and starts three containers, and a job that takes minutes should not
+# sit in front of the checks that take seconds.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+
+  local-stack:
+    runs-on: ubuntu-latest
+    steps:
+
+      - uses: actions/checkout@v7
+
+      # `run` builds the image and starts MinIO and the catalog before running anything.
+      #
+      # No guard on Docker being present, and none wanted. A guard would skip, and a skipped job
+      # reports green — which is the state that let a write-audit-publish bug ship while every check
+      # passed. If Docker is missing from the runner, this must go red and say so.
+      - name: Run the suite against the local lakehouse
+        working-directory: tests/local-stack
+        run: docker compose run --rm spark pytest --run-local-stack
+
+      # The pytest failure names the assertion; it cannot say that MinIO never answered or that the
+      # catalog exited on startup. That is only in the containers' own output.
+      - name: Stack logs
+        if: failure()
+        working-directory: tests/local-stack
+        run: docker compose logs --no-color --timestamps
