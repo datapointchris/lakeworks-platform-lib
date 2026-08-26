@@ -11,7 +11,9 @@ RUN apt-get update \
     && apt-get install --yes --no-install-recommends openjdk-17-jre-headless curl \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir uv
+RUN pip install --no-cache-dir uv==0.12.6
+
+WORKDIR /opt/lakeworks
 
 # `pyproject.toml` is the dependency list, and this image holds no second copy of it. A package added
 # to the `dev` extra arrives here on the next build, and the pyspark pin cannot drift from the one
@@ -44,5 +46,3 @@ ENV PYTHONPATH=/opt/lakeworks/src
 # disabled so a test run cannot leave root-owned caches behind in it.
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTEST_ADDOPTS="-p no:cacheprovider"
-
-WORKDIR /opt/lakeworks
