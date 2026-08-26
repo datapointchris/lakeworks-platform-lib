@@ -60,7 +60,7 @@ docstring-code-format = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = [
-    "integration: touches real AWS. Skipped unless --run-integration is passed.",
+    "integration: touches real AWS. Deselected unless --run-integration is passed.",
 ]
 verbosity_assertions = 2
 minversion = "8.0"
