@@ -23,8 +23,8 @@ from lakeworks.spark import run_id
 log = logging.getLogger(__name__)
 
 SNAPSHOT_RUN_ID_PROPERTY = 'lakeworks.run_id'
-"""Snapshot summary key carrying the run id. Read by `dectl iceberg snapshots` and joined to the
-run-records table, so renaming it breaks provenance queries over history already written."""
+"""Snapshot summary key carrying the run id. Every snapshot already committed carries this exact
+key, so renaming it strands the provenance on all of them rather than moving it."""
 
 
 class AuditFailed(Exception):
