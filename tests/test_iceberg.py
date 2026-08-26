@@ -2,7 +2,7 @@
 
 The assertion builders are pure — they return SQL, they do not run it — so the shape of every
 generated query is checked here without a Spark session. What cannot be checked without a warehouse
-is whether the SQL is *correct against Iceberg*, and that is what the integration tests are for.
+is whether the SQL is *correct against Iceberg*, and that is what `test_local_stack.py` is for.
 """
 
 import dataclasses

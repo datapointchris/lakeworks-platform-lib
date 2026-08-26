@@ -11,11 +11,11 @@ named by its database and table alone and the deployment target never appears in
 
 import os
 import time
-import urllib.error
-import urllib.request
 
+import httpx2
 import pytest
 
+from lakeworks import iceberg
 from lakeworks import spark
 
 pytestmark = pytest.mark.local_stack
@@ -48,13 +48,12 @@ def catalog_answers(uri):
 
     Returns:
         True when the catalog answered at all. An error status is an answer — the question is
-        whether something is there, not whether it liked the request.
+        whether something is there, not whether it liked the request, and `httpx2` raises on a
+        failed connection rather than on a status.
     """
     try:
-        urllib.request.urlopen(f'{uri}/v1/config', timeout=2)
-    except urllib.error.HTTPError:
-        return True
-    except OSError:
+        httpx2.get(f'{uri}/v1/config', timeout=2)
+    except httpx2.HTTPError:
         return False
     return True
 
@@ -88,7 +87,8 @@ def session():
         pytest.fail(f'{", ".join(missing)} unset, so there is no stack to reach. Run: {RUN_COMMAND}')
 
     if spark.resolve_target() is not spark.Target.LOCAL:
-        pytest.fail(f'LAKEWORKS_TARGET is {os.environ["LAKEWORKS_TARGET"]!r}. This file only means anything against `local`.')
+        target = os.environ['LAKEWORKS_TARGET']
+        pytest.fail(f'LAKEWORKS_TARGET is {target!r}, and this file only means anything against `local`. Run: {RUN_COMMAND}')
 
     wait_for_catalog(os.environ['LAKEWORKS_CATALOG_URI'])
 
@@ -116,6 +116,86 @@ def table(session):
     return TABLE
 
 
+@pytest.fixture
+def wap_table(session):
+    """A one-row table for a write-audit-publish case, dropped afterwards.
+
+    Function-scoped, unlike `table`. Write-audit-publish mutates the table and a failing audit
+    deliberately leaves its branch in place, so a shared table would carry one case's wreckage into
+    the next.
+
+    Args:
+        session: The active session.
+
+    Yields:
+        The table identifier.
+    """
+    name = f'{DATABASE}.wap_subject'
+    session.sql(f'DROP TABLE IF EXISTS {name} PURGE')
+    session.createDataFrame([ROWS[0]], SCHEMA).writeTo(name).using('iceberg').createOrReplace()
+    yield name
+    session.sql(f'DROP TABLE IF EXISTS {name} PURGE')
+
+
+def test_a_failing_audit_leaves_main_untouched(session, wap_table):
+    """The data-safety claim the module leads on, and it cannot be checked without Iceberg.
+
+    Iceberg redirects a write to `spark.wap.branch` only on a table carrying `write.wap.enabled`.
+    Without that property the write lands on `main`, the audit reads a branch that never received
+    the rows and passes, and the bad rows are published while the caller is told nothing.
+    """
+    before = sorted((row.animal_key, row.event_type) for row in session.table(wap_table).collect())
+    duplicate = session.createDataFrame([ROWS[0]], SCHEMA)
+
+    with (
+        pytest.raises(iceberg.AuditFailed),
+        iceberg.write_audit_publish(session, wap_table, [iceberg.grain_is_unique('animal_key')]),
+    ):
+        duplicate.writeTo(wap_table).append()
+
+    after = sorted((row.animal_key, row.event_type) for row in session.table(wap_table).collect())
+    assert after == before
+
+
+def test_a_clean_audit_publishes_and_drops_the_branch(session, wap_table):
+    """A passing audit fast-forwards `main` and leaves nothing behind to inspect."""
+    with iceberg.write_audit_publish(session, wap_table, [iceberg.rows_arrived()]):
+        session.createDataFrame([ROWS[2]], SCHEMA).writeTo(wap_table).append()
+
+    keys = sorted(row.animal_key for row in session.table(wap_table).collect())
+    refs = [row.name for row in session.sql(f'SELECT name FROM {wap_table}.refs').collect()]
+
+    assert keys == sorted([ROWS[0][0], ROWS[2][0]])
+    assert refs == ['main']
+
+
+def test_a_hyphenated_branch_name_does_not_break_the_audit(session, wap_table):
+    """The default run id carries hyphens, and so does a Step Functions execution name.
+
+    The branch segment is interpolated into a table identifier. Unquoted, a hyphen there parses as
+    subtraction and the audit dies on an invalid identifier rather than returning a verdict.
+    """
+    with iceberg.write_audit_publish(session, wap_table, [iceberg.rows_arrived()], branch='has-hyphens-in-it'):
+        session.createDataFrame([ROWS[1]], SCHEMA).writeTo(wap_table).append()
+
+    assert session.table(wap_table).count() == 2
+
+
+def test_the_run_id_reaches_the_snapshot_summary(session, wap_table):
+    """A row is traceable to its run only if the snapshot that committed it carries the id.
+
+    Iceberg builds a snapshot's extra summary entries from write options prefixed
+    `snapshot-property.` and from nowhere else, so a run id recorded as a table property cannot be
+    read back from any snapshot.
+    """
+    session.createDataFrame([ROWS[2]], SCHEMA).writeTo(wap_table).options(**iceberg.run_id_options()).append()
+
+    query = f'SELECT summary FROM {wap_table}.snapshots ORDER BY committed_at'
+    summaries = [row.summary for row in session.sql(query).collect()]
+
+    assert summaries[-1][iceberg.SNAPSHOT_RUN_ID_PROPERTY] == spark.run_id()
+
+
 def test_rows_written_through_the_catalog_read_back(session, table):
     """The exit criterion: a job creates an Iceberg table, writes it, and reads it back."""
     read_back = session.table(table)
@@ -136,14 +216,22 @@ def test_the_identifier_needs_no_catalog_prefix(session, table):
     assert sorted(bare) == sorted(prefixed)
 
 
-def test_the_data_files_land_in_the_configured_warehouse(session, table):
+def test_the_data_files_land_in_object_storage_under_the_table(session, table):
     """The rows are in object storage, not in a local directory Spark chose on its own.
 
-    Without this the first two tests pass against a session whose warehouse setting was ignored,
-    because a table that reads back correctly says nothing about where its files went.
+    Asserted against the location the catalog reports for the table, because that is the only
+    authority on it. With a REST catalog the server's own warehouse setting places the table, and
+    `spark.sql.catalog.lakeworks.warehouse` on the client is inert — it is load-bearing for the Glue
+    and EMR branches, where the catalog does not decide placement.
+
+    So this pins that the rows reached S3-compatible storage and sit beneath their own table. It
+    does not pin the client warehouse setting, and comparing against `LAKEWORKS_WAREHOUSE` would
+    only compare two literals from the same compose file.
     """
-    warehouse = os.environ['LAKEWORKS_WAREHOUSE']
+    described = session.sql(f'DESCRIBE TABLE EXTENDED {table}').collect()
+    location = next(row[1] for row in described if row[0] == 'Location')
     paths = [row.file_path for row in session.sql(f'SELECT file_path FROM {table}.files').collect()]
 
+    assert location.startswith('s3://')
     assert paths
-    assert all(path.startswith(warehouse) for path in paths)
+    assert all(path.startswith(location) for path in paths)

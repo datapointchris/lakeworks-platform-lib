@@ -23,8 +23,8 @@ from lakeworks.spark import run_id
 log = logging.getLogger(__name__)
 
 SNAPSHOT_RUN_ID_PROPERTY = 'lakeworks.run_id'
-"""Snapshot summary key carrying the run id. Every snapshot already committed carries this exact
-key, so renaming it strands the provenance on all of them rather than moving it."""
+"""Snapshot summary key carrying the run id. A snapshot's summary is written once and never
+rewritten, so renaming this strands the provenance on every snapshot already committed."""
 
 
 class AuditFailed(Exception):
@@ -160,8 +160,15 @@ def write_audit_publish(
             `main` is untouched.
     """
     staging = branch if branch is not None else f'staged-{run_id()}'
-    branch_qualified = f'{table}.branch_{staging}'
+    # Back-quoted, because a run id carries hyphens — `local-unorchestrated` by default, and a Step
+    # Functions execution name in AWS — and an unquoted hyphen makes this a subtraction.
+    branch_qualified = f'{table}.`branch_{staging}`'
 
+    # Iceberg honours `spark.wap.branch` only on a table carrying this property. Without it the
+    # writes below land on `main`, the audit reads a branch that never received them and passes, and
+    # `fast_forward` then fails on an ancestry error with the bad rows already published. Set here
+    # rather than required of the caller, because the failure is silent at the point it matters.
+    spark.sql(f"ALTER TABLE {table} SET TBLPROPERTIES ('write.wap.enabled' = 'true')")
     spark.sql(f'ALTER TABLE {table} CREATE BRANCH IF NOT EXISTS `{staging}`')
     previous = spark.conf.get('spark.wap.branch', None)
     spark.conf.set('spark.wap.branch', staging)
@@ -190,14 +197,17 @@ def write_audit_publish(
             spark.conf.set('spark.wap.branch', previous)
 
 
-def stamp_run_id(spark: SparkSession, table: str) -> None:
-    """Record the run id on the table so its next snapshot carries provenance.
+def run_id_options() -> dict[str, str]:
+    """Write options that put the run id in the snapshot the write commits.
 
-    Args:
-        spark: Active session.
-        table: Fully-qualified table identifier.
+    Iceberg builds a snapshot's extra summary entries from write options prefixed
+    `snapshot-property.`, and from nowhere else. A table property is not copied into a snapshot
+    summary, so provenance is set per write rather than once per table.
+
+    Returns:
+        Options for `DataFrameWriterV2.options`.
     """
-    spark.sql(f"ALTER TABLE {table} SET TBLPROPERTIES ('{SNAPSHOT_RUN_ID_PROPERTY}' = '{run_id()}')")
+    return {f'snapshot-property.{SNAPSHOT_RUN_ID_PROPERTY}': run_id()}
 
 
 def maintain(spark: SparkSession, table: str, retain_snapshots: int = 10) -> None:
