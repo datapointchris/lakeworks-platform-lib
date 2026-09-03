@@ -1,6 +1,6 @@
 """Spark session construction, so job code never learns where it runs.
 
-A job that branches on its deployment target is a job whose local behaviour and cloud behaviour
+A job that branches on its deployment target is a job whose local behavior and cloud behavior
 drift apart silently. This module is the one place the difference exists: three catalog
 configurations that resolve the same table identifier, so `lakeworks_dev_animal_bronze.shelter_feed`
 means the same thing against MinIO on a laptop, against Glue in dev, and against Glue in prod.

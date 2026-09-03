@@ -20,7 +20,7 @@ deploy, and the resulting failure looks like a data problem.
 ## `spark` — one codebase, three deployments
 
 Job code never learns where it runs. A job that branches on its deployment target is a job whose
-local and cloud behaviour drift apart silently.
+local and cloud behavior drift apart silently.
 
 ```python
 from lakeworks import spark

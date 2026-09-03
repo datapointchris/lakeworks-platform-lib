@@ -9,7 +9,7 @@ default, why assertions return rows, and what the two test markers select.
 
 `spark.session()` takes the target from `LAKEWORKS_TARGET` and the caller passes a job name and
 nothing else. Do not add a parameter, a branch or a helper that lets job code ask which target it
-is on. A job that branches on its deployment target is one whose local and cloud behaviour drift
+is on. A job that branches on its deployment target is one whose local and cloud behavior drift
 apart silently, and the drift is only visible in production.
 
 The same table identifier has to resolve on all three targets. If a change makes an identifier

@@ -164,7 +164,7 @@ def write_audit_publish(
     # Functions execution name in AWS — and an unquoted hyphen makes this a subtraction.
     branch_qualified = f'{table}.`branch_{staging}`'
 
-    # Iceberg honours `spark.wap.branch` only on a table carrying this property. Without it the
+    # Iceberg honors `spark.wap.branch` only on a table carrying this property. Without it the
     # writes below land on `main`, the audit reads a branch that never received them and passes, and
     # `fast_forward` then fails on an ancestry error with the bad rows already published. Set here
     # rather than required of the caller, because the failure is silent at the point it matters.
@@ -185,7 +185,7 @@ def write_audit_publish(
             )
 
         # Reset before publishing: fast_forward is a metadata operation on the table, not a write
-        # to the branch, and leaving WAP set makes its behaviour depend on Iceberg version details.
+        # to the branch, and leaving WAP set makes its behavior depend on Iceberg version details.
         spark.conf.unset('spark.wap.branch')
         spark.sql(f"CALL system.fast_forward('{table}', 'main', '{staging}')")
         spark.sql(f'ALTER TABLE {table} DROP BRANCH `{staging}`')
