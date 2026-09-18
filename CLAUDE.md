@@ -1,9 +1,7 @@
-# CLAUDE.md
+# lakeworks-platform-lib
 
-Guidance for Claude Code working in this repository.
-
-Read the README first. It carries the three deployment targets, why write-audit-publish is the
-default, why assertions return rows, and what the two test markers select.
+The README carries the three deployment targets, why write-audit-publish is the default, why
+assertions return rows, and what the two test markers select.
 
 ## Job code must never learn where it runs
 
