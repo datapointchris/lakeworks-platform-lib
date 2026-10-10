@@ -5,7 +5,7 @@ generated query is checked here without a Spark session. What cannot be checked 
 is whether the SQL is *correct against Iceberg*, and that is what `test_local_stack.py` is for.
 """
 
-import dataclasses
+import dataclasses as dc
 
 import pytest
 
@@ -55,7 +55,7 @@ def test_overlapping_validity_compares_a_table_to_itself():
 def test_assertions_are_frozen():
     """An assertion handed to the audit must not be mutated by it."""
     assertion = iceberg.rows_arrived()
-    with pytest.raises(dataclasses.FrozenInstanceError):
+    with pytest.raises(dc.FrozenInstanceError):
         assertion.name = 'something-else'
 
 

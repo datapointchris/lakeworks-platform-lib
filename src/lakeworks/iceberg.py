@@ -11,7 +11,7 @@ are already written — so it is set on every write from the first pipeline onwa
 """
 
 import contextlib
-import dataclasses
+import dataclasses as dc
 import datetime as dt
 import logging
 from collections.abc import Iterator
@@ -31,7 +31,7 @@ class AuditFailed(Exception):
     """An audit assertion failed against the staged branch, so nothing was published."""
 
 
-@dataclasses.dataclass(frozen=True)
+@dc.dataclass(frozen=True)
 class Assertion:
     """One audit check, expressed as SQL that must return zero rows.
 
