@@ -13,7 +13,7 @@ name: lakeworks-local-lakehouse
 # list, because a fixture that stands in for production is worth exactly what is known about where
 # it stops doing so.
 
-# Not secrets. MinIO is created with them on first start, nothing outside this stack can reach it,
+# Not secrets. RustFS is created with them on first start, nothing outside this stack can reach it,
 # and they are what makes the fixture reproducible — so they belong in its definition rather than in
 # a file a reader has to go and find.
 #
@@ -26,30 +26,35 @@ x-aws-credentials: &aws-credentials
 
 services:
 
-  minio:
-    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
-    command: server /data --console-address ':9001'
+  # RustFS rather than MinIO, whose images can no longer be pulled anonymously from either quay.io
+  # or Docker Hub. It serves path-style requests alone unless `RUSTFS_SERVER_DOMAINS` is set, which
+  # is what every client here is configured for.
+  rustfs:
+    image: rustfs/rustfs:1.0.1
     environment:
-      MINIO_ROOT_USER: lakeworks
-      MINIO_ROOT_PASSWORD: lakeworks-local
+      RUSTFS_ACCESS_KEY: lakeworks
+      RUSTFS_SECRET_KEY: lakeworks-local
+      RUSTFS_CONSOLE_ENABLE: 'true'
     ports:
       - '9000:9000'
       - '9001:9001'
     volumes:
-      - minio-data:/data
+      - rustfs-data:/data
 
-  # Neither store is usable as it arrives. MinIO serves no bucket until one is made, and a named
+  # Neither store is usable as it arrives. RustFS serves no bucket until one is made, and a named
   # volume is created owned by root while the catalog that has to write to it runs unprivileged.
   #
-  # The retry loop doubles as the readiness gate for the whole stack. `mc alias set` fails until
-  # MinIO answers, so whatever is ordered behind this container completing has a running MinIO, a
-  # bucket inside it, and a catalog directory the catalog can open.
+  # The retry loop doubles as the readiness gate for the whole stack. Listing the buckets fails until
+  # RustFS answers, so whatever is ordered behind this container completing has a running RustFS, a
+  # bucket inside it, and a catalog directory the catalog can open. The image runs as root, which the
+  # `chown` needs.
   storage-init:
-    image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
+    image: amazon/aws-cli:2.37.12
     depends_on:
-      - minio
+      - rustfs
     environment:
       <<: *aws-credentials
+      AWS_ENDPOINT_URL: http://rustfs:9000
     volumes:
       - catalog-data:/catalog-data
     entrypoint:
@@ -57,15 +62,16 @@ services:
       - -c
       - |
         waited=0
-        until mc alias set lakeworks http://minio:9000 "$$AWS_ACCESS_KEY_ID" "$$AWS_SECRET_ACCESS_KEY"; do
+        until aws s3 ls > /dev/null; do
           waited=$$((waited + 1))
           if [ "$$waited" -ge 60 ]; then
-            echo "MinIO did not answer on http://minio:9000 within 60s. Check: docker compose logs minio" >&2
+            echo "RustFS did not answer on $$AWS_ENDPOINT_URL within 60s. Check: docker compose logs rustfs" >&2
             exit 1
           fi
           sleep 1
         done
-        mc mb --ignore-existing lakeworks/lakeworks-local-lake
+        aws s3api head-bucket --bucket lakeworks-local-lake 2> /dev/null ||
+          aws s3 mb s3://lakeworks-local-lake
         chown 1000:1000 /catalog-data
 
   # Iceberg publishes no 1.7.1 image, so the server sits one minor ahead of the client. The client
@@ -81,7 +87,7 @@ services:
       <<: *aws-credentials
       CATALOG_WAREHOUSE: s3://lakeworks-local-lake/
       CATALOG_IO__IMPL: org.apache.iceberg.aws.s3.S3FileIO
-      CATALOG_S3_ENDPOINT: http://minio:9000
+      CATALOG_S3_ENDPOINT: http://rustfs:9000
       CATALOG_S3_PATH__STYLE__ACCESS: 'true'
       # Backed by a file rather than the image's default in-memory store. The warehouse below it is
       # a volume, so an in-memory catalog would forget tables whose data files survive the restart.
@@ -106,12 +112,12 @@ services:
     environment:
       <<: *aws-credentials
       LAKEWORKS_TARGET: local
-      LAKEWORKS_S3_ENDPOINT: http://minio:9000
+      LAKEWORKS_S3_ENDPOINT: http://rustfs:9000
       LAKEWORKS_CATALOG_URI: http://catalog:8181
       LAKEWORKS_WAREHOUSE: s3://lakeworks-local-lake/
     volumes:
       - ../..:/opt/lakeworks
 
 volumes:
-  minio-data:
+  rustfs-data:
   catalog-data:

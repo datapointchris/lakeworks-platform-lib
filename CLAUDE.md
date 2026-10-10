@@ -54,7 +54,7 @@ The default run needs nothing but this repo. The pure functions — `catalog_con
 assertion builders — take arguments and return settings or SQL, so the branches that matter need no
 Spark session and no AWS account. Keep new logic on that side of the line where it can be.
 
-`tests/local-stack` runs the suite against MinIO and an Iceberg REST catalog:
+`tests/local-stack` runs the suite against RustFS and an Iceberg REST catalog:
 
 ```bash
 cd tests/local-stack && docker compose run --rm spark pytest --run-local-stack

@@ -3,7 +3,7 @@
 A job that branches on its deployment target is a job whose local behavior and cloud behavior
 drift apart silently. This module is the one place the difference exists: three catalog
 configurations that resolve the same table identifier, so `lakeworks_dev_animal_bronze.shelter_feed`
-means the same thing against MinIO on a laptop, against Glue in dev, and against Glue in prod.
+means the same thing against RustFS on a laptop, against Glue in dev, and against Glue in prod.
 
 The Iceberg and Spark versions are pinned to match AWS Glue 5.0 exactly — Spark 3.5.4, Python 3.11,
 Java 17. A local Spark 4.x accepts different Iceberg procedure syntax, so a job that works locally
@@ -59,7 +59,7 @@ def catalog_config(target: Target, warehouse: str) -> dict[str, str]:
 
     Args:
         target: Where the session will run.
-        warehouse: Warehouse URI. An `s3://` prefix in every case, including local, because MinIO
+        warehouse: Warehouse URI. An `s3://` prefix in every case, including local, because RustFS
             is S3-compatible and using `file://` locally would exercise a different Iceberg code
             path than the one that runs in AWS.
 
@@ -89,7 +89,7 @@ def catalog_config(target: Target, warehouse: str) -> dict[str, str]:
                 f'spark.sql.catalog.{CATALOG_NAME}.uri': os.environ['LAKEWORKS_CATALOG_URI'],
                 f'spark.sql.catalog.{CATALOG_NAME}.io-impl': 'org.apache.iceberg.aws.s3.S3FileIO',
                 f'spark.sql.catalog.{CATALOG_NAME}.s3.endpoint': endpoint,
-                # MinIO serves one host with bucket names in the path; real S3 does not.
+                # RustFS serves one host with bucket names in the path; real S3 does not.
                 f'spark.sql.catalog.{CATALOG_NAME}.s3.path-style-access': 'true',
                 'spark.hadoop.fs.s3a.endpoint': endpoint,
                 'spark.hadoop.fs.s3a.path.style.access': 'true',

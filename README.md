@@ -34,7 +34,7 @@ three:
 
 | Target | Catalog | Warehouse |
 | --- | --- | --- |
-| `local` | Iceberg REST (the Apache fixture, in `tests/local-stack`) | MinIO, path-style access |
+| `local` | Iceberg REST (the Apache fixture, in `tests/local-stack`) | RustFS, path-style access |
 | `glue` | `GlueCatalog` | S3 |
 | `emr` | `GlueCatalog` | S3 |
 
@@ -142,7 +142,7 @@ Glue 5.0 runtime. `docker compose down -v` removes the stack and everything in i
 
 | Service | Serving |
 | --- | --- |
-| MinIO | `s3://lakeworks-local-lake/`, with a console on `:9001` |
+| RustFS | `s3://lakeworks-local-lake/`, with a console on `:9001` |
 | Iceberg REST catalog | The protocol Glue speaks, on `:8181` |
 | Spark | Spark 3.5.4, Python 3.11, Java 17 — built from `tests/local-stack/Dockerfile` |
 

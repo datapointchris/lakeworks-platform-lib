@@ -49,7 +49,7 @@ def test_glue_and_emr_use_the_glue_catalog():
 
 
 def test_local_uses_the_rest_catalog_and_path_style_access(monkeypatch):
-    """MinIO serves one host with bucket names in the path; real S3 does not.
+    """RustFS serves one host with bucket names in the path; real S3 does not.
 
     Without path-style access every local read resolves a bucket-as-subdomain that does not exist,
     and the failure looks like a networking problem rather than a configuration one.
