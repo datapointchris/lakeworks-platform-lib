@@ -20,7 +20,7 @@ jobs:
 
       - uses: actions/checkout@v7
 
-      # `run` builds the image and starts MinIO and the catalog before running anything.
+      # `run` builds the image and starts RustFS and the catalog before running anything.
       #
       # No guard on Docker being present, and none wanted. A guard would skip, and a skipped job
       # reports green — which is the state that let a write-audit-publish bug ship while every check
@@ -29,7 +29,7 @@ jobs:
         working-directory: tests/local-stack
         run: docker compose run --rm spark pytest --run-local-stack
 
-      # The pytest failure names the assertion; it cannot say that MinIO never answered or that the
+      # The pytest failure names the assertion; it cannot say that RustFS never answered or that the
       # catalog exited on startup. That is only in the containers' own output.
       - name: Stack logs
         if: failure()
