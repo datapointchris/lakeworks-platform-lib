@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.11"
 resolution-markers = [
     "python_full_version >= '3.12' and sys_platform == 'emscripten'",
@@ -564,9 +564,6 @@ wheels = [
 name = "lakeworks"
 version = "0.1.0"
 source = { editable = "." }
-dependencies = [
-    { name = "pyyaml" },
-]
 
 [package.optional-dependencies]
 dev = [
@@ -587,7 +584,6 @@ requires-dist = [
     { name = "pyspark", marker = "extra == 'dev'", specifier = "==3.5.4" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
     { name = "pytest-cov", marker = "extra == 'dev'" },
-    { name = "pyyaml", specifier = ">=6.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = "==0.12.5" },
 ]
 provides-extras = ["dev"]
