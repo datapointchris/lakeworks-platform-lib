@@ -1,6 +1,6 @@
 [project]
 name = "lakeworks"
-version = "0.2.0"
+version = "0.2.1"
 description = "The lakeworks platform library: Spark sessions for local, Glue and EMR, Iceberg write-audit-publish with audit assertions, run-id provenance and table maintenance."
 requires-python = ">=3.11"          # Glue 5.0 ships Python 3.11; a higher floor cannot run there
 dependencies = []
