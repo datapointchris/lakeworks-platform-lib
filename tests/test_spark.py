@@ -1,10 +1,10 @@
 """Tests for Spark session construction.
 
-`catalog_config` is pure by design — it takes the target and warehouse and returns settings, with
-everything that reads the environment kept in `resolve_target` and `session`. That split is what
-makes the branch that actually matters testable without a Spark session or an AWS account, and it
-is why these tests run in milliseconds.
+`catalog_config` returns settings without building a session, so the branch that differs per
+target is tested without Spark or an AWS account, in milliseconds.
 """
+
+import sys
 
 import pytest
 
@@ -16,10 +16,11 @@ def test_resolve_target_defaults_to_local(monkeypatch):
     assert spark.resolve_target() is spark.Target.LOCAL
 
 
-@pytest.mark.parametrize('value', ['local', 'glue', 'emr'])
-def test_resolve_target_reads_every_member(monkeypatch, value):
-    monkeypatch.setenv('LAKEWORKS_TARGET', value)
-    assert spark.resolve_target().value == value
+def test_a_glue_job_argument_sets_the_target_over_the_environment(monkeypatch):
+    """Glue passes a job's arguments in argv and sets no environment variable from them."""
+    monkeypatch.setenv('LAKEWORKS_TARGET', 'local')
+    monkeypatch.setattr(sys, 'argv', ['conform.py', '--JOB_ID', 'j_1', '--LAKEWORKS_TARGET', 'glue', '--enable-metrics', 'true'])
+    assert spark.resolve_target() is spark.Target.GLUE
 
 
 def test_unknown_target_names_the_valid_ones(monkeypatch):

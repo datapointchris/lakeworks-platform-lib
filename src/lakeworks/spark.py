@@ -13,6 +13,7 @@ fails in Glue for reasons that present as an Iceberg bug rather than a version m
 import enum
 import logging
 import os
+import sys
 
 from pyspark.sql import SparkSession
 
@@ -33,16 +34,39 @@ class Target(enum.Enum):
     EMR = 'emr'
 
 
-def resolve_target() -> Target:
-    """Read the deployment target from the environment.
+def _setting(name: str) -> str | None:
+    """Read a setting from a `--NAME value` job argument, or else from the environment.
+
+    Glue hands a job its arguments in `sys.argv` and sets no environment variable from them. So a
+    setting Terraform passes as a job argument reaches the job only by being read here. A job
+    argument wins over the environment, because it is set for the run.
+
+    Args:
+        name: The setting, such as `LAKEWORKS_TARGET`.
 
     Returns:
-        The declared target.
+        The value, or None when neither source sets it.
+    """
+    flag = f'--{name}'
+    arguments = sys.argv[1:]
+    for index, argument in enumerate(arguments):
+        if argument == flag and index + 1 < len(arguments):
+            return arguments[index + 1]
+        if argument.startswith(f'{flag}='):
+            return argument.removeprefix(f'{flag}=')
+    return os.environ.get(name)
+
+
+def resolve_target() -> Target:
+    """Read the deployment target from `LAKEWORKS_TARGET`.
+
+    Returns:
+        The declared target, or LOCAL when nothing sets it.
 
     Raises:
         ValueError: If `LAKEWORKS_TARGET` is set to something that is not a Target member.
     """
-    raw = os.environ.get('LAKEWORKS_TARGET', Target.LOCAL.value)
+    raw = _setting('LAKEWORKS_TARGET') or Target.LOCAL.value
     try:
         return Target(raw)
     except ValueError as err:
@@ -53,9 +77,9 @@ def resolve_target() -> Target:
 def catalog_config(target: Target, warehouse: str) -> dict[str, str]:
     """Build the Iceberg catalog configuration for a target.
 
-    Pure — takes the target and warehouse and returns settings. Everything that reads the
-    environment happens in `resolve_target` and `session`, which keeps the branch that actually
-    matters testable without a Spark session or an AWS account.
+    The Glue and EMR branch reads nothing but its arguments. The local branch also reads its
+    endpoint and catalog URI from the environment, which a laptop sets and a cloud job never needs.
+    Either way the result is testable without a Spark session or an AWS account.
 
     Args:
         target: Where the session will run.
@@ -116,12 +140,14 @@ def session(app: str, warehouse: str | None = None) -> SparkSession:
         which already built one before the job script runs.
 
     Raises:
-        KeyError: If a required environment variable is absent. Deliberately not defaulted: a
+        KeyError: If a required setting is absent. Deliberately not defaulted: a
             session pointed at the wrong warehouse writes real data to the wrong place, and the
             caller cannot tell that from success.
     """
     target = resolve_target()
-    resolved_warehouse = warehouse if warehouse is not None else os.environ['LAKEWORKS_WAREHOUSE']
+    resolved_warehouse = warehouse if warehouse is not None else _setting('LAKEWORKS_WAREHOUSE')
+    if resolved_warehouse is None:
+        raise KeyError('LAKEWORKS_WAREHOUSE')
     config = catalog_config(target, resolved_warehouse)
 
     builder = SparkSession.builder.appName(app)
@@ -147,4 +173,4 @@ def run_id() -> str:
     Returns:
         The run id.
     """
-    return os.environ.get('LAKEWORKS_RUN_ID', 'local-unorchestrated')
+    return _setting('LAKEWORKS_RUN_ID') or 'local-unorchestrated'
