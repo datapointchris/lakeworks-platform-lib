@@ -140,9 +140,9 @@ def run_id() -> str:
     `iceberg.write_audit_publish` names its default staging branch after it. A pipeline that wants
     it in its own log lines or columns reads it here.
 
-    Set by the Step Functions execution name in AWS. Falls back to a local marker so a developer
-    run is distinguishable from an orchestrated one rather than looking like a production run with
-    a missing id.
+    Whatever orchestrates the job sets it, one id per run. Falls back to a local marker so a
+    developer run is distinguishable from an orchestrated one rather than looking like a
+    production run with a missing id.
 
     Returns:
         The run id.

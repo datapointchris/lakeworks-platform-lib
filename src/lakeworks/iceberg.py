@@ -162,8 +162,8 @@ def write_audit_publish(
             `main` is untouched.
     """
     staging = branch if branch is not None else f'staged-{run_id()}'
-    # Back-quoted, because a run id carries hyphens — `local-unorchestrated` by default, and a Step
-    # Functions execution name in AWS — and an unquoted hyphen makes this a subtraction.
+    # Back-quoted, because a run id can carry hyphens, as `local-unorchestrated` does, and an
+    # unquoted hyphen makes this a subtraction.
     branch_qualified = f'{table}.`branch_{staging}`'
 
     # Iceberg honors `spark.wap.branch` only on a table carrying this property. Without it the
