@@ -5,9 +5,10 @@ publication is a check that reports damage. Writing to a branch means a failing 
 table exactly as it was, and no consumer ever observed the bad state. The cost is one extra state
 in the state machine.
 
-Every commit carries the run id in its snapshot summary, which is what makes any row in any table
-traceable back to the run that produced it. That link cannot be added retroactively — the snapshots
-are already written — so it is set on every write from the first pipeline onward.
+A write that passes `run_id_options()` carries the run id in the summary of the snapshot it
+commits, which is what makes a row traceable back to the run that produced it. A write without
+those options commits a snapshot with no run id. That link cannot be added afterwards, because the
+snapshot is already written, so every write passes the options from the first pipeline onward.
 """
 
 import contextlib
@@ -40,7 +41,7 @@ class Assertion:
     description. The rows stay on the kept branch, where this query returns them.
 
     Attributes:
-        name: Short identifier, surfaced in the failure message and in quality results.
+        name: Short identifier, surfaced in the `AuditFailed` message and in the audit's log lines.
         sql: Query returning the rows that violate the assertion. `{table}` is substituted with the
             branch-qualified table identifier.
         description: What a violation means, for whoever reads the alert at an unhelpful hour.
@@ -78,7 +79,7 @@ def no_overlapping_validity(key_column: str) -> Assertion:
         key_column: The natural key whose validity periods must not overlap.
 
     Returns:
-        An assertion returning offending key pairs.
+        An assertion returning the key once for each pair of rows whose validity overlaps.
     """
     return Assertion(
         name=f'no_overlapping_validity[{key_column}]',

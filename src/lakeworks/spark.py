@@ -134,7 +134,11 @@ def session(app: str, warehouse: str | None = None) -> SparkSession:
 
 
 def run_id() -> str:
-    """The run identifier threaded through logs, Iceberg snapshots and lineage.
+    """The run identifier, read from `LAKEWORKS_RUN_ID`.
+
+    `iceberg.run_id_options` puts it in the summary of the snapshot a write commits, and
+    `iceberg.write_audit_publish` names its default staging branch after it. A pipeline that wants
+    it in its own log lines or columns reads it here.
 
     Set by the Step Functions execution name in AWS. Falls back to a local marker so a developer
     run is distinguishable from an orchestrated one rather than looking like a production run with
