@@ -35,9 +35,10 @@ This cannot be repaired after the fact, because the snapshots are already commit
 
 ## Assertions return rows, not booleans
 
-Every assertion is SQL that must return zero rows, which is what lets a failure carry the offending
-rows as evidence. A new assertion returning a boolean throws away the only useful part of a
-failure. Follow the existing builders in `iceberg`.
+Every assertion is SQL returning the rows that violate it, so zero rows is a pass. `AuditFailed`
+carries each failing assertion's violation count and description. The rows stay on the kept
+branch, where the same query returns them. A new assertion returning a boolean throws away those
+rows, the only useful part of a failure. Follow the existing builders in `iceberg`.
 
 `no_overlapping_validity` is the one worth understanding before touching: its failure mode raises
 nowhere, it silently doubles rows through a join, and it surfaces weeks later as a number somebody

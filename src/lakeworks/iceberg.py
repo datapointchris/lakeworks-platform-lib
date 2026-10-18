@@ -35,8 +35,9 @@ class AuditFailed(Exception):
 class Assertion:
     """One audit check, expressed as SQL that must return zero rows.
 
-    Zero-rows-means-pass rather than a boolean, because a failing check can then return the
-    offending rows and the error message carries evidence instead of only a verdict.
+    Zero-rows-means-pass rather than a boolean, because the query that detects a violation then
+    also names the rows that violate. `AuditFailed` carries the violation count and the
+    description. The rows stay on the kept branch, where this query returns them.
 
     Attributes:
         name: Short identifier, surfaced in the failure message and in quality results.
