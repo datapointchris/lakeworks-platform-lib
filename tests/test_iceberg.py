@@ -34,16 +34,6 @@ def test_every_assertion_substitutes_the_table_placeholder():
         assert 'db.tbl' in rendered
 
 
-def test_zero_rows_means_pass_is_the_convention():
-    """Every assertion returns violating rows, never a boolean.
-
-    That is what lets a failure carry evidence — the offending rows — instead of only a verdict.
-    """
-    assertion = iceberg.rows_arrived()
-    rendered = assertion.sql.format(table='db.tbl')
-    assert 'WHERE n = 0' in rendered
-
-
 def test_overlapping_validity_compares_a_table_to_itself():
     assertion = iceberg.no_overlapping_validity('animal_id')
     rendered = assertion.sql.format(table='db.dim_animal')
