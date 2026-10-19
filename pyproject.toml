@@ -15,7 +15,7 @@ dev = [
     "pytest>=8.0",
     "pytest-cov",
     "moto[s3,glue]>=5.0",
-    "ruff==0.12.5",
+    "ruff==0.17.1",
     "pyright",
 ]
 
