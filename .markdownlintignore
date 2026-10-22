@@ -1,4 +1,4 @@
-# Preventive: no release here writes a changelog. The entry stands so that one
-# arriving generated is never linted, since normalization of a generated file
-# is undone on the next release and returns as a conflict.
+# No release here writes CHANGELOG.md. The entry keeps markdownlint off one if
+# a release starts generating it, because the hook's --fix on a generated file
+# is undone by the next release and returns as a conflict.
 CHANGELOG.md

@@ -27,8 +27,8 @@ x-aws-credentials: &aws-credentials
 services:
 
   # RustFS rather than MinIO, whose images can no longer be pulled anonymously from either quay.io
-  # or Docker Hub. It serves path-style requests alone unless `RUSTFS_SERVER_DOMAINS` is set, which
-  # is what every client here is configured for.
+  # or Docker Hub. RustFS answers only path-style requests unless `RUSTFS_SERVER_DOMAINS` is set,
+  # and path-style is what every client here is configured for.
   rustfs:
     image: rustfs/rustfs:1.0.1
     environment:
