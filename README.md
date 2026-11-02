@@ -172,9 +172,8 @@ carries only a verdict. A query that returns rows also says which ones.
 | `rows_arrived()` | the branch holds no rows at all |
 
 `no_overlapping_validity` reads the columns `valid_from` and `valid_to`, where a null `valid_to`
-marks the current row. It is the one worth understanding. Its failure raises nowhere. It silently
-doubles every join against the dimension, and it surfaces weeks later as a number somebody does not
-trust.
+marks the current row. A violation raises nowhere. It doubles every join against the dimension, and
+it surfaces weeks later as a number somebody does not trust.
 
 `rows_arrived` counts the whole branch, which holds every row `main` held plus the write. An empty
 append to a populated table passes it. It catches an empty run only on a table the write replaces,
@@ -207,9 +206,8 @@ not yet committed.
 ## Run ids — provenance is set per write, never once per table
 
 `spark.run_id()` reads `LAKEWORKS_RUN_ID`. Whatever orchestrates the job sets it, one id per run.
-Unset, it is `local-unorchestrated`. A developer run is
-then told apart from an orchestrated one, rather than passing for a production run with a missing
-id.
+Unset, it is `local-unorchestrated`, which tells a developer run apart from an orchestrated one. A
+cloud run whose orchestrator sets no id gets the same marker.
 
 `iceberg.run_id_options()` returns the write options that put the id in the summary of the snapshot
 that write commits, under the key `lakeworks.run_id`. Iceberg builds a snapshot's extra summary

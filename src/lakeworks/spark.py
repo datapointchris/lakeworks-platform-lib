@@ -37,9 +37,9 @@ class Target(enum.Enum):
 def _setting(name: str) -> str | None:
     """Read a setting from a `--NAME value` job argument, or else from the environment.
 
-    Glue hands a job its arguments in `sys.argv` and sets no environment variable from them. So a
-    setting Terraform passes as a job argument reaches the job only by being read here. A job
-    argument wins over the environment, because it is set for the run.
+    Glue hands a job its arguments in `sys.argv` and sets no environment variable from them, so a
+    setting passed as a job argument reaches the job only through here. A job argument wins over the
+    environment, because it is set for the run.
 
     Args:
         name: The setting, such as `LAKEWORKS_TARGET`.
@@ -77,9 +77,9 @@ def resolve_target() -> Target:
 def catalog_config(target: Target, warehouse: str) -> dict[str, str]:
     """Build the Iceberg catalog configuration for a target.
 
-    The Glue and EMR branch reads nothing but its arguments. The local branch also reads its
-    endpoint and catalog URI from the environment, which a laptop sets and a cloud job never needs.
-    Either way the result is testable without a Spark session or an AWS account.
+    The Glue and EMR branch reads nothing but its arguments. The local branch also reads
+    `LAKEWORKS_S3_ENDPOINT` and `LAKEWORKS_CATALOG_URI` from the environment, and raises KeyError when
+    either is unset. Neither branch builds a session, so the result is testable without Spark or AWS.
 
     Args:
         target: Where the session will run.
@@ -140,9 +140,9 @@ def session(app: str, warehouse: str | None = None) -> SparkSession:
         which already built one before the job script runs.
 
     Raises:
-        KeyError: If a required setting is absent. Deliberately not defaulted: a
-            session pointed at the wrong warehouse writes real data to the wrong place, and the
-            caller cannot tell that from success.
+        KeyError: If a required setting is absent. Deliberately not defaulted: a session pointed at
+            the wrong warehouse writes real data to the wrong place, and the caller cannot tell that
+            from success.
     """
     target = resolve_target()
     resolved_warehouse = warehouse if warehouse is not None else _setting('LAKEWORKS_WAREHOUSE')
@@ -166,9 +166,9 @@ def run_id() -> str:
     `iceberg.write_audit_publish` names its default staging branch after it. A pipeline that wants
     it in its own log lines or columns reads it here.
 
-    Whatever orchestrates the job sets it, one id per run. Falls back to a local marker so a
-    developer run is distinguishable from an orchestrated one rather than looking like a
-    production run with a missing id.
+    Whatever orchestrates the job sets it, one id per run. Unset, it is `local-unorchestrated`, so a
+    developer run is told apart from an orchestrated one. A cloud run whose orchestrator sets no id
+    gets the same marker, and its default staging branch is shared with every other such run.
 
     Returns:
         The run id.

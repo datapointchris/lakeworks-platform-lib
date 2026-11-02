@@ -17,7 +17,7 @@ def test_resolve_target_defaults_to_local(monkeypatch):
 
 
 def test_a_glue_job_argument_sets_the_target_over_the_environment(monkeypatch):
-    """Glue passes a job's arguments in argv and sets no environment variable from them."""
+    """Read from the environment alone, a Glue job given `--LAKEWORKS_TARGET glue` resolves to `local`."""
     monkeypatch.setenv('LAKEWORKS_TARGET', 'local')
     monkeypatch.setattr(sys, 'argv', ['conform.py', '--JOB_ID', 'j_1', '--LAKEWORKS_TARGET', 'glue', '--enable-metrics', 'true'])
     assert spark.resolve_target() is spark.Target.GLUE
