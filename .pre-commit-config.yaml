@@ -263,8 +263,8 @@ repos:
       # DL3018 is DL3008's apk counterpart — the same "pin every package
       # version" rule, for an Alpine base rather than a Debian one. Ignoring one
       # and enforcing the other only means the Debian images pass and the Alpine
-      # ones do not; pinning an apk version also breaks on the next base image
-      # bump, which is why DL3008 was ignored to begin with.
+      # ones do not; pinning a package version in either breaks on the next base
+      # image bump.
       #
       # The exclude is not about rules. hadolint matches on the Dockerfile name,
       # and BuildKit's per-file ignore list is named <dockerfile>.dockerignore,
