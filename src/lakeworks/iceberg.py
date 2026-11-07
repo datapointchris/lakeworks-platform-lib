@@ -95,13 +95,15 @@ def no_overlapping_validity(key_column: str) -> Assertion:
 
 
 def rows_arrived() -> Assertion:
-    """Assert the write produced something.
+    """Assert the audited branch holds at least one row.
 
-    An empty successful run is the failure that looks most like success. Where a genuinely empty
-    load is expected, the pipeline omits this assertion deliberately rather than by oversight.
+    The query counts the whole branch, which holds every row `main` held plus the write. So it
+    catches an empty run only on a table the write replaces, or one that started empty. An empty
+    append to a populated table passes it. Where a genuinely empty load is expected, the pipeline
+    omits this assertion deliberately rather than by oversight.
 
     Returns:
-        An assertion that fails when the table is empty.
+        An assertion that fails when the branch holds no rows.
     """
     return Assertion(
         name='rows_arrived',
