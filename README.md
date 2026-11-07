@@ -147,13 +147,19 @@ is one extra state in the state machine.
 The table must already exist, because the first statement alters it. An exception inside the block
 skips the audit. The branch stays, and `main` is untouched.
 
-`AuditFailed` names each failing assertion with its violation count and its description. The rows
-themselves stay on the kept branch:
+`AuditFailed` names each failing assertion with its violation count and its description. Its
+message also names the identifier that reads the kept branch and the statement that drops it. The
+same values are attributes: `table`, `branch`, `branch_qualified` and `failures`, one
+`(assertion, violation_count)` pair per failing assertion. The rows themselves stay on the branch:
 
 ```python
-staged = f'{table}.`branch_staged-{spark.run_id()}`'
-session.sql(assertions[0].sql.format(table=staged)).show()  # the rows that broke the check
-session.sql(f'ALTER TABLE {table} DROP BRANCH `staged-{spark.run_id()}`')  # once read
+try:
+    with iceberg.write_audit_publish(session, table, assertions):
+        events.writeTo(table).options(**iceberg.run_id_options()).append()
+except iceberg.AuditFailed as err:
+    for assertion, _ in err.failures:
+        session.sql(assertion.sql.format(table=err.branch_qualified)).show()  # the rows that broke it
+    session.sql(f'ALTER TABLE {err.table} DROP BRANCH `{err.branch}`')  # once read
 ```
 
 Drop the branch once it has been read. The next run under the same run id reuses it, rejected rows

@@ -29,7 +29,30 @@ rewritten, so renaming this strands the provenance on every snapshot already com
 
 
 class AuditFailed(Exception):
-    """An audit assertion failed against the staged branch, so nothing was published."""
+    """An audit assertion failed against the staged branch, so nothing was published.
+
+    The message names the identifier that reads the violating rows and the statement that drops
+    the branch once they are read. The same values are attributes, so a caller handling the
+    failure reads them rather than rebuilding the branch name.
+
+    Attributes:
+        table: The table the audit guarded. Its `main` is unchanged.
+        branch: The kept staging branch.
+        branch_qualified: The identifier that reads the branch, for an assertion's `{table}`.
+        failures: One `(assertion, violation_count)` pair per failing assertion.
+    """
+
+    def __init__(self, table: str, branch: str, branch_qualified: str, failures: list[tuple['Assertion', int]]) -> None:
+        self.table = table
+        self.branch = branch
+        self.branch_qualified = branch_qualified
+        self.failures = failures
+        detail = '; '.join(f'{a.name}: {n} violations — {a.description}' for a, n in failures)
+        super().__init__(
+            f'{len(failures)} assertion(s) failed on {table}, and main is unchanged. The rows stay on '
+            f'branch `{branch}`: read them from {branch_qualified}, then run '
+            f'ALTER TABLE {table} DROP BRANCH `{branch}`. {detail}'
+        )
 
 
 @dc.dataclass(frozen=True)
@@ -182,11 +205,7 @@ def write_audit_publish(
         yield branch_qualified
 
         if failures := evaluate(spark, branch_qualified, assertions):
-            detail = '; '.join(f'{a.name}: {n} violations — {a.description}' for a, n in failures)
-            raise AuditFailed(
-                f'{len(failures)} assertion(s) failed on {table}, branch `{staging}` retained for '
-                f'inspection and main is unchanged. {detail}'
-            )
+            raise AuditFailed(table, staging, branch_qualified, failures)
 
         # Reset before publishing: fast_forward is a metadata operation on the table, not a write
         # to the branch, and leaving WAP set makes its behavior depend on Iceberg version details.
