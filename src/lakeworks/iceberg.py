@@ -19,6 +19,7 @@ from collections.abc import Iterator
 
 from pyspark.sql import SparkSession
 
+from lakeworks.spark import LOG_SCHEMA_VERSION
 from lakeworks.spark import run_id
 
 log = logging.getLogger(__name__)
@@ -152,11 +153,16 @@ def evaluate(spark: SparkSession, table: str, assertions: list[Assertion]) -> li
     failures = []
     for assertion in assertions:
         violations = spark.sql(assertion.sql.format(table=table)).count()
+        attributes = {
+            'lakeworks.schema_version': LOG_SCHEMA_VERSION,
+            'lakeworks.assertion': assertion.name,
+            'lakeworks.table': table,
+        }
         if violations > 0:
-            log.warning(f'audit failed: {assertion.name} table={table} violations={violations}')
+            log.warning('lakeworks.audit_failed', extra=attributes | {'lakeworks.violation_count': violations})
             failures.append((assertion, violations))
         else:
-            log.info(f'audit passed: {assertion.name} table={table}')
+            log.info('lakeworks.audit_passed', extra=attributes)
     return failures
 
 
@@ -199,7 +205,12 @@ def write_audit_publish(
     spark.sql(f'ALTER TABLE {table} CREATE BRANCH IF NOT EXISTS `{staging}`')
     previous = spark.conf.get('spark.wap.branch', None)
     spark.conf.set('spark.wap.branch', staging)
-    log.info(f'wap: writing to branch table={table} branch={staging}')
+    branch_attributes = {
+        'lakeworks.schema_version': LOG_SCHEMA_VERSION,
+        'lakeworks.table': table,
+        'lakeworks.branch': staging,
+    }
+    log.info('lakeworks.wap_branch_written', extra=branch_attributes)
 
     try:
         yield branch_qualified
@@ -212,7 +223,7 @@ def write_audit_publish(
         spark.conf.unset('spark.wap.branch')
         spark.sql(f"CALL system.fast_forward('{table}', 'main', '{staging}')")
         spark.sql(f'ALTER TABLE {table} DROP BRANCH `{staging}`')
-        log.info(f'wap: published table={table} branch={staging}')
+        log.info('lakeworks.wap_published', extra=branch_attributes)
     finally:
         if previous is None:
             spark.conf.unset('spark.wap.branch')
@@ -252,4 +263,11 @@ def maintain(spark: SparkSession, table: str, retain_snapshots: int = 10) -> Non
     # Last, and with a cutoff well behind now: a shorter window can delete files a concurrent
     # writer has staged but not yet committed.
     spark.sql(f"CALL system.remove_orphan_files(table => '{table}', older_than => TIMESTAMP '{cutoff}')")
-    log.info(f'maintenance complete table={table} retained_snapshots={retain_snapshots}')
+    log.info(
+        'lakeworks.maintenance_completed',
+        extra={
+            'lakeworks.schema_version': LOG_SCHEMA_VERSION,
+            'lakeworks.table': table,
+            'lakeworks.retained_snapshots': retain_snapshots,
+        },
+    )

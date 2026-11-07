@@ -24,6 +24,13 @@ segment already carries env, domain and layer, so this stays constant across eve
 
 ICEBERG_EXTENSIONS = 'org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions'
 
+LOG_SCHEMA_VERSION = 1
+"""Shape of the library's log events, carried on each one as `lakeworks.schema_version`.
+
+Every log record's message is a stable event name, `lakeworks.<event>`, and its values are
+attributes under `lakeworks.` passed as `extra=`. A consumer keys on the name and reads the
+attributes, so a change to which attributes an event carries raises this number."""
+
 
 class Target(enum.Enum):
     """Where the session runs. Selected by `LAKEWORKS_TARGET`, never inferred."""
@@ -158,7 +165,15 @@ def session(app: str, warehouse: str | None = None) -> SparkSession:
         builder = builder.config(key, value)
 
     spark = builder.getOrCreate()
-    log.info(f'spark session ready: app={app} target={target.value} warehouse={resolved_warehouse}')
+    log.info(
+        'lakeworks.spark_session_ready',
+        extra={
+            'lakeworks.schema_version': LOG_SCHEMA_VERSION,
+            'lakeworks.app': app,
+            'lakeworks.target': target.value,
+            'lakeworks.warehouse': resolved_warehouse,
+        },
+    )
     return spark
 
 
