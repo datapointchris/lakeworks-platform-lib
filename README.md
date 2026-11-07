@@ -28,17 +28,19 @@ it pins.
 
 ## Starting from scratch
 
-Git, uv and Docker are the only prerequisites. Nothing here reaches AWS, and no credentials are
-needed.
+Git, uv, [Task](https://taskfile.dev) and Docker are the only prerequisites. Nothing here reaches
+AWS, and no credentials are needed.
 
 ```bash
 git clone https://github.com/datapointchris/lakeworks-platform-lib
 cd lakeworks-platform-lib
-uv venv && uv pip install -e '.[dev]'   # pyspark at the Glue pin, plus the test tools
-.venv/bin/python -m pytest              # the pure tests; anything needing the stack or AWS is deselected
-cd tests/local-stack
-docker compose run --rm spark pytest --run-local-stack   # build the image, start the stack, test on it
+task setup              # pyspark at the Glue pin, the test tools, and the git hooks
+task test               # the pure tests; anything needing the stack is deselected
+task test:local-stack   # build the image, start the stack, test on it
 ```
+
+`task --list` shows the rest: `lint`, `typecheck` and `format`. `task test:local-stack` runs
+`docker compose run --rm spark pytest --run-local-stack` in `tests/local-stack`.
 
 The last line is the proof. It builds a session the way a job does. It then writes, audits and
 publishes through a real Iceberg REST catalog into S3-compatible storage. A pass means the `local`

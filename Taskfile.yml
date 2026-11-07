@@ -1,0 +1,43 @@
+version: '3'
+
+tasks:
+  default:
+    desc: List the tasks
+    silent: true
+    cmds:
+      - task --list
+
+  setup:
+    desc: Install pyspark at the Glue pin and the dev tools, then the git hooks
+    cmds:
+      - uv sync --all-extras
+      - uvx pre-commit install --hook-type pre-commit --hook-type commit-msg
+
+  test:
+    desc: Run the pure suite; the local-stack tier is deselected. Arguments after -- go to pytest
+    cmds:
+      - uv run --all-extras pytest {{.CLI_ARGS}}
+
+  test:local-stack:
+    desc: Build the Spark image, start RustFS and the Iceberg REST catalog, and run the suite on them
+    dir: tests/local-stack
+    cmds:
+      - docker compose run --rm spark pytest --run-local-stack {{.CLI_ARGS}}
+
+  lint:
+    desc: Run ruff's checks, its format check and mypy, writing no file
+    cmds:
+      - uv run --all-extras ruff check .
+      - uv run --all-extras ruff format --check .
+      - task: typecheck
+
+  typecheck:
+    desc: Type-check the package and the tests with mypy
+    cmds:
+      - uv run --all-extras mypy .
+
+  format:
+    desc: Rewrite files with ruff's formatter and its autofixes
+    cmds:
+      - uv run --all-extras ruff format .
+      - uv run --all-extras ruff check --fix .

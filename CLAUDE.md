@@ -43,13 +43,6 @@ work on one and not another, the change is wrong rather than the caller.
 
 ## Tests
 
-```bash
-uv venv && uv pip install -e '.[dev]'
-.venv/bin/python -m pytest
-```
-
-`tests/local-stack` runs the suite against RustFS and an Iceberg REST catalog:
-
-```bash
-cd tests/local-stack && docker compose run --rm spark pytest --run-local-stack
-```
+`task setup` installs the dev extra and the git hooks, and `task test` runs the pure suite.
+`task test:local-stack` runs the suite against RustFS and an Iceberg REST catalog. `task --list`
+shows the rest: `lint`, `typecheck` and `format`.
