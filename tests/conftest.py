@@ -6,7 +6,6 @@ state hardest to tell apart from a passing one, which is the state where nothing
 """
 
 GATED_MARKERS = {
-    'integration': '--run-integration',
     'local_stack': '--run-local-stack',
 }
 """Marker name to the flag that selects it. A marker absent from here is not gated."""
@@ -18,12 +17,6 @@ def pytest_addoption(parser):
     Args:
         parser: Pytest's option parser.
     """
-    parser.addoption(
-        '--run-integration',
-        action='store_true',
-        default=False,
-        help='Run the tests marked `integration`. They reach real AWS.',
-    )
     parser.addoption(
         '--run-local-stack',
         action='store_true',

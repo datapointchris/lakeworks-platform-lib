@@ -2,7 +2,7 @@
 
 The README carries the three deployment targets, the settings and what each does when unset, why
 write-audit-publish is the default, why assertions return rows, how provenance is recorded, and
-what the two test markers select. This file holds what to keep in mind at the edit site, and the
+what the gated test marker selects. This file holds what to keep in mind at the edit site, and the
 README holds the reasons.
 
 ## Job code must never learn where it runs

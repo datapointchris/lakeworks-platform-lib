@@ -78,7 +78,6 @@ docstring-code-format = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = [
-    "integration: touches real AWS. Deselected unless --run-integration is passed.",
     "local_stack: needs the compose stack under tests/local-stack. Deselected unless --run-local-stack is passed.",
 ]
 verbosity_assertions = 2

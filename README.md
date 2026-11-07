@@ -242,10 +242,9 @@ Each gated marker is deselected unless its flag is passed:
 | Marker | Flag | Needs | Carried by |
 | --- | --- | --- | --- |
 | `local_stack` | `--run-local-stack` | the local lakehouse below | every test in `tests/test_local_stack.py` |
-| `integration` | `--run-integration` | an AWS account | no test |
 
-`integration` is registered, and no test carries it. Passing its flag changes nothing about what
-runs. A marker that exists and selects nothing reads, from a green run, exactly like coverage.
+A gated marker is registered only with a test carrying it. A marker that exists and selects nothing
+reads, from a green run, exactly like coverage.
 
 **Deselected, never skipped.** A skip is what a test reports once it has started and found what it
 needs is absent. A suite green because everything skipped reads exactly like one where everything
