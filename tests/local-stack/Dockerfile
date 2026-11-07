@@ -3,8 +3,8 @@
 # backport repository.
 FROM python:3.11-slim-bookworm
 
-# Glue 5.0 ships Iceberg 1.7.1. A local client ahead of that accepts procedure syntax and table
-# properties Glue rejects, which is the failure the Spark pin already exists to prevent.
+# Glue 5.0 ships Iceberg 1.7.1, and the client is held there. The README's local lakehouse section
+# says why.
 ARG ICEBERG_VERSION=1.7.1
 
 RUN apt-get update \

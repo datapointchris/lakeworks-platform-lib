@@ -74,9 +74,8 @@ services:
           aws s3 mb s3://lakeworks-local-lake
         chown 1000:1000 /catalog-data
 
-  # Iceberg publishes no 1.7.1 image, so the server sits one minor ahead of the client. The client
-  # is where the pin has to hold: its library version decides which procedures and table properties
-  # a job may use, and that is what has to match Glue.
+  # Iceberg publishes no 1.7.1 image, so the server sits one minor ahead of the client. The README's
+  # local lakehouse section says why the pin holds on the client.
   catalog:
     image: apache/iceberg-rest-fixture:1.8.1
     # The image runs as uid 1000, which is what `storage-init` hands the volume to.

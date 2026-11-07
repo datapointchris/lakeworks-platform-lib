@@ -5,9 +5,8 @@ drift apart silently. This module is the one place the difference exists: three 
 configurations that resolve the same table identifier, so `lakeworks_dev_animal_bronze.shelter_feed`
 means the same thing against RustFS on a laptop, against Glue in dev, and against Glue in prod.
 
-The Iceberg and Spark versions are pinned to match AWS Glue 5.0 exactly — Spark 3.5.4, Python 3.11,
-Java 17. A local Spark 4.x accepts different Iceberg procedure syntax, so a job that works locally
-fails in Glue for reasons that present as an Iceberg bug rather than a version mismatch.
+The Iceberg and Spark versions are pinned to match AWS Glue 5.0 exactly: Spark 3.5.4, Python 3.11,
+Java 17. The README's `spark` section says why the pin holds.
 """
 
 import enum

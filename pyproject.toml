@@ -7,8 +7,7 @@ dependencies = []
 
 [project.optional-dependencies]
 # pyspark is provided by the runtime in Glue and EMR, and pinned here only so local development
-# matches Glue 5.0 exactly. A local Spark 4.x accepts different Iceberg procedure syntax, and the
-# resulting failure presents as an Iceberg bug rather than a version mismatch.
+# matches Glue 5.0's Spark. The README's `spark` section says why the pin holds.
 dev = [
     "pyspark==3.5.4",
     "httpx2>=2.12",

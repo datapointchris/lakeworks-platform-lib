@@ -1,7 +1,9 @@
 # lakeworks-platform-lib
 
-The README carries the three deployment targets, why write-audit-publish is the default, why
-assertions return rows, and what the two test markers select.
+The README carries the three deployment targets, the settings and what each does when unset, why
+write-audit-publish is the default, why assertions return rows, how provenance is recorded, and
+what the two test markers select. This file holds what to keep in mind at the edit site, and the
+README holds the reasons.
 
 ## Job code must never learn where it runs
 
@@ -13,35 +15,31 @@ apart silently, and the drift is only visible in production.
 The same table identifier has to resolve on all three targets. If a change makes an identifier
 work on one and not another, the change is wrong rather than the caller.
 
-## Nothing falls back to a default
+## The library reaches outside the process through two doors
 
-A missing `LAKEWORKS_WAREHOUSE` raises. Do not add a default, an `or ''`, or a "sensible" fallback
-to make a test or a local run easier. A session pointed at the wrong warehouse writes real data to
-the wrong place, and the caller cannot tell that from success.
+- **Every Spark and Iceberg effect goes through the `SparkSession` the caller passes in**, as
+  `spark.sql(...)` and `spark.conf` on it. The library opens no client, connection or file of its
+  own. `spark.session()` is the one place a session is built.
+- **Every setting is read through `spark._setting`**, which takes a `--NAME value` job argument
+  before the environment. Glue hands settings to a job only as job arguments, so a setting read any
+  other way never reaches a Glue job.
+- **The one sanctioned exception is `catalog_config`'s local branch.** It reads
+  `LAKEWORKS_S3_ENDPOINT` and `LAKEWORKS_CATALOG_URI` straight from the environment. Both exist only
+  on the `local` target, whose compose stack sets them as environment variables.
 
-## Versions are pinned to Glue 5.0
+## Each of these has its reason in the README
 
-Spark 3.5.4, Python 3.11, Java 17. A local Spark 4.x accepts different Iceberg procedure syntax, so
-a job that passes locally then fails in Glue, and the failure reads as an Iceberg bug rather than a
-version mismatch. Do not relax the pin to resolve a dependency conflict — resolve the conflict.
-
-## Provenance is set per write
-
-Iceberg builds a snapshot's extra summary entries from write options prefixed
-`snapshot-property.`, and from nowhere else. Setting a table property instead records the last run
-to touch the table and says nothing about any row in it. Use `run_id_options()` on the write.
-
-This cannot be repaired after the fact, because the snapshots are already committed.
-
-## Assertions return rows, not booleans
-
-A new assertion returns the rows that violate it, never a boolean, because those rows are what a
-failed audit leaves to read on the kept branch. The `Assertion` docstring carries the rest. Follow
-the existing builders in `iceberg`.
-
-`no_overlapping_validity` is the one worth understanding before touching: its failure mode raises
-nowhere, it silently doubles rows through a join, and it surfaces weeks later as a number somebody
-does not trust.
+- No setting that places data gets a default. Do not add a fallback for `LAKEWORKS_WAREHOUSE`.
+- pyspark stays pinned to Glue 5.0. Resolve a dependency conflict rather than relaxing the pin.
+- Provenance is the per-write option `run_id_options()`, never a table property. A snapshot
+  committed without it cannot be repaired.
+- A new assertion returns the rows that violate it, never a boolean. Follow the builders in
+  `iceberg`.
+- `no_overlapping_validity` fails without raising, by doubling rows through a join. Read its README
+  paragraph before touching it.
+- New logic stays pure where it can, so the default test run needs no Spark session and no AWS.
+- The gated markers are deselected, never skipped. Do not add a guard that lets the local-stack job
+  pass when Docker is missing.
 
 ## Tests
 
@@ -50,18 +48,8 @@ uv venv && uv pip install -e '.[dev]'
 .venv/bin/python -m pytest
 ```
 
-The default run needs nothing but this repo. The pure functions — `catalog_config` and the
-assertion builders — take arguments and return settings or SQL, so the branches that matter need no
-Spark session and no AWS account. Keep new logic on that side of the line where it can be.
-
 `tests/local-stack` runs the suite against RustFS and an Iceberg REST catalog:
 
 ```bash
 cd tests/local-stack && docker compose run --rm spark pytest --run-local-stack
 ```
-
-**The markers are deselected, not skipped, and that is deliberate.** A skip is what a test reports
-after starting and finding what it needs is absent, and a suite green because everything skipped
-reads exactly like one where everything ran. Do not convert a deselect into a skip, and do not add
-a guard that makes the local-stack job pass when Docker is missing — that job must go red and say
-so.
