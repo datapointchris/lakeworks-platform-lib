@@ -11,7 +11,8 @@ RUN apt-get update \
     && apt-get install --yes --no-install-recommends openjdk-17-jre-headless curl \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir uv==0.12.6
+# The uv release CI and the uv-lock hook run, so the image resolves `pyproject.toml` the same way.
+RUN pip install --no-cache-dir uv==0.12.24
 
 WORKDIR /opt/lakeworks
 
