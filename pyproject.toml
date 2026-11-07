@@ -12,8 +12,6 @@ dev = [
     "pyspark==3.5.4",
     "httpx2>=2.12",
     "pytest>=8.0",
-    "pytest-cov",
-    "moto[s3,glue]>=5.0",
     "ruff==0.17.1",
     "mypy>=1.10.0",
 ]
