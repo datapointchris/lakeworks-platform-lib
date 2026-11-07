@@ -147,7 +147,11 @@ def session(app: str, warehouse: str | None = None) -> SparkSession:
     target = resolve_target()
     resolved_warehouse = warehouse if warehouse is not None else _setting('LAKEWORKS_WAREHOUSE')
     if resolved_warehouse is None:
-        raise KeyError('LAKEWORKS_WAREHOUSE')
+        raise KeyError(
+            'LAKEWORKS_WAREHOUSE is not set. Pass the warehouse URI as the job argument '
+            '`--LAKEWORKS_WAREHOUSE s3://<bucket>/<prefix>/`, set the environment variable '
+            'LAKEWORKS_WAREHOUSE to it, or pass `warehouse=` to spark.session.'
+        )
     config = catalog_config(target, resolved_warehouse)
 
     builder = SparkSession.builder.appName(app)
