@@ -197,7 +197,7 @@ def test_the_run_id_reaches_the_snapshot_summary(session, wap_table):
 
 
 def test_rows_written_through_the_catalog_read_back(session, table):
-    """The exit criterion: a job creates an Iceberg table, writes it, and reads it back."""
+    """A table created and written through the catalog reads back every row written to it."""
     read_back = session.table(table)
 
     assert read_back.count() == len(ROWS)
