@@ -16,7 +16,7 @@ dev = [
     "pytest-cov",
     "moto[s3,glue]>=5.0",
     "ruff==0.17.1",
-    "pyright",
+    "mypy>=1.10.0",
 ]
 
 [build-system]
