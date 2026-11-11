@@ -22,9 +22,10 @@ jobs:
 
       # `run` builds the image and starts RustFS and the catalog before running anything.
       #
-      # No guard on Docker being present, and none wanted. A guard would skip, and a skipped job
-      # reports green — which is the state that let a write-audit-publish bug ship while every check
-      # passed. If Docker is missing from the runner, this must go red and say so.
+      # No check for Docker first. A check that skipped this step on a runner without Docker would
+      # leave the job passing with no local-stack test run, so a broken write path could merge with
+      # every check passing. With no check, `docker compose run` fails here, and the job fails with
+      # Docker's own error.
       - name: Run the suite against the local lakehouse
         working-directory: tests/local-stack
         run: docker compose run --rm spark pytest --run-local-stack

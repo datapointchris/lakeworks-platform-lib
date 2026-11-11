@@ -255,8 +255,10 @@ reads, from a green run, exactly like coverage.
 
 **Deselected, never skipped.** A skip is what a test reports once it has started and found what it
 needs is absent. A suite green because everything skipped reads exactly like one where everything
-ran. For the same reason the CI job that runs the local lakehouse has no guard for a missing
-Docker. Without Docker it goes red and says so.
+ran. For the same reason, the CI job that runs the local lakehouse does not check for Docker before
+it starts. A check that skipped the job on a runner without Docker would leave the workflow passing
+with none of the local-stack tests run. With no check, `docker compose run` fails on that runner,
+so the job fails and its log shows Docker's own error.
 
 CI runs the pure suite and the local lakehouse as separate workflows, on every push to `main` and
 every pull request. The lakehouse builds an image and starts containers. A job that takes minutes
