@@ -60,9 +60,9 @@ from lakeworks import iceberg
 from lakeworks import spark
 
 session = spark.session('animal-conform')  # the pipeline slug, shown in the Spark UI
-events = session.table('lakeworks_dev_animal_bronze.shelter_feed')  # no catalog prefix
+events = session.table(spark.resolve_table('lakeworks_{env}_animal_bronze.shelter_feed'))  # no catalog prefix
 
-table = 'lakeworks_dev_animal_silver.animal_event'  # must already exist
+table = spark.resolve_table('lakeworks_{env}_animal_silver.animal_event')  # must already exist
 assertions = [
     iceberg.grain_is_unique('animal_key', 'event_at', 'event_type'),
     iceberg.rows_arrived(),
@@ -74,6 +74,10 @@ with iceberg.write_audit_publish(session, table, assertions):
 The write inside the block lands on a staging branch. `main` moves only once every assertion
 passes. The write options stamp the run id onto the snapshot the write commits.
 
+A job names each table as its pipeline spec's `reads` and `writes` do, with the `{env}`
+placeholder, and `spark.resolve_table` fills it. The job's Terraform fills the same placeholder to
+grant those databases, so the name the job reads is the name its grant covers.
+
 These settings decide everything the code does not name:
 
 | Setting | Read by | When unset |
@@ -83,11 +87,12 @@ These settings decide everything the code does not name:
 | `LAKEWORKS_S3_ENDPOINT` | `spark.session`, on `local` only | raises `KeyError` |
 | `LAKEWORKS_CATALOG_URI` | `spark.session`, on `local` only | raises `KeyError` |
 | `LAKEWORKS_RUN_ID` | `spark.run_id` | `local-unorchestrated` |
+| `LAKEWORKS_ENV` | `spark.resolve_table` | raises `KeyError` |
 
 A `LAKEWORKS_TARGET` that names no target raises `ValueError`, and the message lists the valid
 ones.
 
-`LAKEWORKS_TARGET`, `LAKEWORKS_WAREHOUSE` and `LAKEWORKS_RUN_ID` are read from a job argument,
+`LAKEWORKS_TARGET`, `LAKEWORKS_WAREHOUSE`, `LAKEWORKS_RUN_ID` and `LAKEWORKS_ENV` are read from a job argument,
 `--LAKEWORKS_TARGET glue`, before the environment. Glue hands a job its arguments in `sys.argv` and
 sets no environment variable from them, so a Glue job's Terraform passes these as default
 arguments. A job argument wins where both are set. The two endpoint settings are local-only and are

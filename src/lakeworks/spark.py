@@ -192,3 +192,32 @@ def run_id() -> str:
         The run id.
     """
     return _setting('LAKEWORKS_RUN_ID') or 'local-unorchestrated'
+
+
+def resolve_table(declared: str) -> str:
+    """A table identifier as the pipeline spec declares it, with `{env}` filled from `LAKEWORKS_ENV`.
+
+    The spec's `reads` and `writes` name each table with an `{env}` placeholder, and the job's
+    Terraform fills it from the same environment to grant those databases. A job that passes the
+    spec's own string here reads the table its grant covers.
+
+    Args:
+        declared: The identifier as the spec writes it, such as
+            `lakeworks_{env}_animal_bronze.shelter_feed`.
+
+    Returns:
+        The identifier in this environment, such as `lakeworks_dev_animal_bronze.shelter_feed`.
+
+    Raises:
+        KeyError: If `LAKEWORKS_ENV` is absent. Deliberately not defaulted, because it places data.
+        ValueError: If `declared` carries no `{env}` placeholder.
+    """
+    if '{env}' not in declared:
+        raise ValueError(f'{declared!r} carries no {{env}} placeholder. Pass the identifier as the pipeline spec writes it.')
+    env = _setting('LAKEWORKS_ENV')
+    if env is None:
+        raise KeyError(
+            'LAKEWORKS_ENV is not set. Pass the environment as the job argument `--LAKEWORKS_ENV <env>`, '
+            'or set the environment variable LAKEWORKS_ENV to it.'
+        )
+    return declared.replace('{env}', env)

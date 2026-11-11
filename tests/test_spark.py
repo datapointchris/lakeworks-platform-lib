@@ -95,3 +95,14 @@ def test_run_id_marks_an_unorchestrated_run(monkeypatch):
 
     monkeypatch.setenv('LAKEWORKS_RUN_ID', 'sfn-abc123')
     assert spark.run_id() == 'sfn-abc123'
+
+
+def test_a_spec_table_resolves_in_the_job_arguments_environment(monkeypatch):
+    """A job reading an env-less name reads a database its grant does not cover, so an unset env refuses."""
+    monkeypatch.setattr(sys, 'argv', ['conform.py', '--LAKEWORKS_ENV', 'prod'])
+    assert spark.resolve_table('lakeworks_{env}_animal_bronze.shelter_feed') == 'lakeworks_prod_animal_bronze.shelter_feed'
+
+    monkeypatch.setattr(sys, 'argv', ['conform.py'])
+    monkeypatch.delenv('LAKEWORKS_ENV', raising=False)
+    with pytest.raises(KeyError, match='LAKEWORKS_ENV'):
+        spark.resolve_table('lakeworks_{env}_animal_bronze.shelter_feed')
