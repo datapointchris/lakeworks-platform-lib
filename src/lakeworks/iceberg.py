@@ -1,14 +1,10 @@
 """Iceberg operations the department depends on, chiefly write-audit-publish.
 
-The reason WAP is the default rather than an advanced option: a quality check that runs after
-publication is a check that reports damage. Writing to a branch means a failing audit leaves the
-table exactly as it was, and no consumer ever observed the bad state. The cost is one extra state
-in the state machine.
+A job's writes land on a staging branch, and `main` moves only once every assertion passes. The
+README's `iceberg` section says why that is the default.
 
-A write that passes `run_id_options()` carries the run id in the summary of the snapshot it
-commits, which is what makes a row traceable back to the run that produced it. A write without
-those options commits a snapshot with no run id. That link cannot be added afterwards, because the
-snapshot is already written, so every write passes the options from the first pipeline onward.
+Every write passes `run_id_options()`. A snapshot committed without them carries no run id, and
+none can be added later. The README's run-id section says how the id reaches the snapshot.
 """
 
 import contextlib

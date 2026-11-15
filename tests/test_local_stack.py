@@ -184,9 +184,7 @@ def test_a_hyphenated_branch_name_does_not_break_the_audit(session, wap_table):
 def test_the_run_id_reaches_the_snapshot_summary(session, wap_table):
     """A row is traceable to its run only if the snapshot that committed it carries the id.
 
-    Iceberg builds a snapshot's extra summary entries from write options prefixed
-    `snapshot-property.` and from nowhere else, so a run id recorded as a table property cannot be
-    read back from any snapshot.
+    `run_id_options` says why the id travels as a write option rather than a table property.
     """
     session.createDataFrame([ROWS[2]], SCHEMA).writeTo(wap_table).options(**iceberg.run_id_options()).append()
 
