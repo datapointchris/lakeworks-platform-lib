@@ -1,4 +1,4 @@
-# forge-toolchain: 59
+# forge-toolchain: 61
 name: CI
 
 on:
@@ -65,6 +65,34 @@ jobs:
         uses: actions/checkout@v7
 
       # generated:hooks
+      # The docker block's compose hooks call `docker compose`. The image a
+      # self-hosted runner starts from ships the Docker CLI without the compose
+      # plugin, and a hosted image ships whichever release it was built with. So
+      # the job installs the pinned release as a plugin under a DOCKER_CONFIG of
+      # its own, which the CLI searches before its system directories. Every
+      # runner then parses with the same release, and parsing needs no daemon.
+      #
+      # A repo with no compose file has nothing for those hooks to read, so the
+      # step downloads nothing there. The pattern is the hook's files pattern.
+      - name: Install Docker Compose
+        run: |
+          docker_compose_version="5.7.1"
+          docker_compose_sha256="af426722a8af5de812fcee30cc1c39f0639f5f723cbadefb25e5d4db054064cf"
+
+          if ! git ls-files | grep -qE '(^|/)(docker-)?compose([.-][^/]*)?\.ya?ml$'; then
+            echo "No compose file is tracked, so the compose hooks have nothing to parse."
+            exit 0
+          fi
+
+          config="$RUNNER_TEMP/docker-config"
+          mkdir -p "$config/cli-plugins"
+          curl -fsSL --retry 3 -o "$config/cli-plugins/docker-compose" \
+            "https://github.com/docker/compose/releases/download/v${docker_compose_version}/docker-compose-linux-x86_64"
+          echo "${docker_compose_sha256}  $config/cli-plugins/docker-compose" | sha256sum -c -
+          chmod +x "$config/cli-plugins/docker-compose"
+          echo "DOCKER_CONFIG=$config" >> "$GITHUB_ENV"
+          DOCKER_CONFIG="$config" docker compose version
+
       # Every hook in the repo's committed pre-commit config. A push from a
       # checkout that never ran `pre-commit
       # install`, or a merge in the web UI, passes every hook by not running it,
@@ -470,6 +498,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: bash "$RUNNER_TEMP/run-hook" hadolint
+
+      - name: pre-commit run docker-compose-config
+        if: ${{ !cancelled() && steps.hook-scope.outcome == 'success' }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: bash "$RUNNER_TEMP/run-hook" docker-compose-config
 
       - name: pre-commit run jactionlint
         if: ${{ !cancelled() && steps.hook-scope.outcome == 'success' }}

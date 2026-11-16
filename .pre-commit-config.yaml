@@ -1,4 +1,4 @@
-# forge-toolchain: 59
+# forge-toolchain: 61
 fail_fast: true
 default_stages: [pre-commit]
 repos:
@@ -304,6 +304,24 @@ repos:
       - id: hadolint
         args: ["--ignore", "DL3008", "--ignore", "DL3018", "--ignore", "DL4006"]
         exclude: '\.dockerignore$'
+
+  # Docker Compose's own parser reads each compose file alone. Interpolation
+  # is off, because the .env a file's ${VARIABLES} read is gitignored, so a
+  # checkout holds none, and a required ${VARIABLE:?} fails without it.
+  # --no-env-resolution leaves each service's env_file unopened for the same
+  # reason. A repo whose files interpolate from a committed env file declares
+  # them as compose_projects, which the next block parses merged.
+  #
+  # `language: system` runs the desk's `docker compose`, so a box without the
+  # compose plugin fails here rather than passing a compose change unread. CI's
+  # hooks job installs the pinned release first. Parsing needs no daemon.
+  - repo: local
+    hooks:
+      - id: docker-compose-config
+        name: docker compose config on each compose file
+        entry: bash -c 'docker compose version > /dev/null 2>&1 || { echo "docker compose is not on this machine, and the hook parses compose files with it" >&2; exit 1; }; for file in "$@"; do docker compose -f "$file" config --quiet --no-env-resolution --no-interpolate || { echo "$file does not parse" >&2; exit 1; }; done' --
+        language: system
+        files: '(^|/)(docker-)?compose([.-][^/]*)?\.ya?ml$'
 
 # generated:github-actions - GitHub Actions
   - repo: https://github.com/jdx/jactionlint
