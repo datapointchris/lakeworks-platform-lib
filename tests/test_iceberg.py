@@ -5,7 +5,37 @@ generated query is checked here without a Spark session. What cannot be checked 
 is whether the SQL is *correct against Iceberg*, and that is what `test_local_stack.py` is for.
 """
 
+import datetime as dt
+import re
+from unittest import mock
+
+from pyspark.sql import SparkSession
+
 from lakeworks import iceberg
+
+
+def test_maintain_removes_orphans_last_and_only_a_week_behind():
+    """Compaction orphans the files it replaces, so orphan removal has to come after it.
+
+    The local lakehouse cannot run orphan removal, so the order and the cutoff are pinned here from
+    the statements `maintain` hands a session that records them without running them. A cutoff
+    closer than a week can delete files a concurrent writer has staged but not yet committed.
+    """
+    session = mock.create_autospec(SparkSession, instance=True)
+    iceberg.maintain(session, 'db.tbl', retain_snapshots=3)
+    statements = [call.args[0] for call in session.sql.call_args_list]
+
+    assert re.findall(r'CALL system\.(\w+)', ' '.join(statements)) == [
+        'rewrite_data_files',
+        'expire_snapshots',
+        'remove_orphan_files',
+    ]
+    assert all("table => 'db.tbl'" in statement for statement in statements)
+    assert 'retain_last => 3' in statements[1]
+
+    (cutoff,) = re.findall(r"older_than => TIMESTAMP '([^']+)'", statements[2])
+    week_ago = dt.datetime.now(dt.UTC).replace(tzinfo=None) - dt.timedelta(days=7)
+    assert dt.datetime.fromisoformat(cutoff) <= week_ago
 
 
 def test_grain_assertion_names_every_key_column():
