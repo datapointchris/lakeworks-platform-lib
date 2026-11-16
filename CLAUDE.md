@@ -22,10 +22,8 @@ work on one and not another, the change is wrong rather than the caller.
   own. `spark.session()` is the one place a session is built.
 - **Every setting is read through `spark._setting`**, which takes a `--NAME value` job argument
   before the environment. Glue hands settings to a job only as job arguments, so a setting read any
-  other way never reaches a Glue job.
-- **The one sanctioned exception is `catalog_config`'s local branch.** It reads
-  `LAKEWORKS_S3_ENDPOINT` and `LAKEWORKS_CATALOG_URI` straight from the environment. Both exist only
-  on the `local` target, whose compose stack sets them as environment variables.
+  other way never reaches a Glue job. `test_every_setting_is_read_through_one_function` fails on any
+  `os.environ` or `os.getenv` outside it.
 
 ## Each of these has its reason in the README
 

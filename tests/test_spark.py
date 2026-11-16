@@ -4,11 +4,43 @@
 target is tested without Spark or an AWS account, in milliseconds.
 """
 
+import ast
+import pathlib
 import sys
 
 import pytest
 
+import lakeworks
 from lakeworks import spark
+
+
+def test_every_setting_is_read_through_one_function():
+    """A setting read straight from the environment never reaches a Glue job.
+
+    Glue hands a job its settings only as job arguments, and `_setting` reads those before the
+    environment. So it is the one function that may touch `os.environ` or `os.getenv`.
+    """
+    package = pathlib.Path(lakeworks.__file__).parent
+    bypasses = []
+    for path in sorted(package.rglob('*.py')):
+        tree = ast.parse(path.read_text(), filename=str(path))
+        allowed = {
+            id(node)
+            for function in ast.walk(tree)
+            if isinstance(function, ast.FunctionDef) and function.name == '_setting'
+            for node in ast.walk(function)
+        }
+        bypasses += [
+            f'{path.relative_to(package.parent)}:{node.lineno}'
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Attribute)
+            and isinstance(node.value, ast.Name)
+            and node.value.id == 'os'
+            and node.attr in ('environ', 'getenv')
+            and id(node) not in allowed
+        ]
+
+    assert bypasses == []
 
 
 def test_resolve_target_defaults_to_local(monkeypatch):

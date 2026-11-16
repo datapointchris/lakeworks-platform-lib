@@ -92,11 +92,9 @@ These settings decide everything the code does not name:
 A `LAKEWORKS_TARGET` that names no target raises `ValueError`, and the message lists the valid
 ones.
 
-`LAKEWORKS_TARGET`, `LAKEWORKS_WAREHOUSE`, `LAKEWORKS_RUN_ID` and `LAKEWORKS_ENV` are read from a job argument,
-`--LAKEWORKS_TARGET glue`, before the environment. Glue hands a job its arguments in `sys.argv` and
-sets no environment variable from them, so a Glue job's Terraform passes these as default
-arguments. A job argument wins where both are set. The two endpoint settings are local-only and are
-read from the environment.
+Every setting is read from a job argument, `--LAKEWORKS_TARGET glue`, before the environment. Glue
+hands a job its arguments in `sys.argv` and sets no environment variable from them, so a Glue job's
+Terraform passes these as default arguments. A job argument wins where both are set.
 
 ## `spark` — one codebase on every deployment target, and job code never learns which
 

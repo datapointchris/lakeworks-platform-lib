@@ -83,9 +83,9 @@ def resolve_target() -> Target:
 def catalog_config(target: Target, warehouse: str) -> dict[str, str]:
     """Build the Iceberg catalog configuration for a target.
 
-    The Glue and EMR branch reads nothing but its arguments. The local branch also reads
-    `LAKEWORKS_S3_ENDPOINT` and `LAKEWORKS_CATALOG_URI` from the environment, and raises KeyError when
-    either is unset. Neither branch builds a session, so the result is testable without Spark or AWS.
+    The Glue and EMR branch reads nothing but its arguments. The local branch also reads the settings
+    `LAKEWORKS_S3_ENDPOINT` and `LAKEWORKS_CATALOG_URI`, and raises KeyError when either is unset.
+    Neither branch builds a session, so the result is testable without Spark or AWS.
 
     Args:
         target: Where the session will run.
@@ -97,6 +97,7 @@ def catalog_config(target: Target, warehouse: str) -> dict[str, str]:
         Spark configuration keys and values.
 
     Raises:
+        KeyError: If the target is `local` and either endpoint setting is absent.
         ValueError: If a Target member has no branch here.
     """
     common = {
@@ -113,10 +114,17 @@ def catalog_config(target: Target, warehouse: str) -> dict[str, str]:
 
     match target:
         case Target.LOCAL:
-            endpoint = os.environ['LAKEWORKS_S3_ENDPOINT']
+            endpoint = _setting('LAKEWORKS_S3_ENDPOINT')
+            catalog_uri = _setting('LAKEWORKS_CATALOG_URI')
+            if endpoint is None or catalog_uri is None:
+                raise KeyError(
+                    'The local target needs both LAKEWORKS_S3_ENDPOINT and LAKEWORKS_CATALOG_URI. Set each '
+                    'as a job argument or an environment variable. The compose stack under '
+                    'tests/local-stack sets both.'
+                )
             return common | {
                 f'spark.sql.catalog.{CATALOG_NAME}.type': 'rest',
-                f'spark.sql.catalog.{CATALOG_NAME}.uri': os.environ['LAKEWORKS_CATALOG_URI'],
+                f'spark.sql.catalog.{CATALOG_NAME}.uri': catalog_uri,
                 f'spark.sql.catalog.{CATALOG_NAME}.io-impl': 'org.apache.iceberg.aws.s3.S3FileIO',
                 f'spark.sql.catalog.{CATALOG_NAME}.s3.endpoint': endpoint,
                 # RustFS serves one host with bucket names in the path; real S3 does not.
