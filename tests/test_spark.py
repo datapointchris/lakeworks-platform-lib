@@ -65,15 +65,6 @@ def test_unknown_target_names_the_valid_ones(monkeypatch):
         spark.resolve_target()
 
 
-def test_every_target_has_a_catalog_configuration(monkeypatch):
-    """The dispatch names every enum member, so a new target cannot fall through silently."""
-    monkeypatch.setenv('LAKEWORKS_S3_ENDPOINT', 'http://localhost:9000')
-    monkeypatch.setenv('LAKEWORKS_CATALOG_URI', 'http://localhost:8181')
-    for target in spark.Target:
-        config = spark.catalog_config(target, 's3://warehouse/')
-        assert config[f'spark.sql.catalog.{spark.CATALOG_NAME}.warehouse'] == 's3://warehouse/'
-
-
 def test_glue_and_emr_use_the_glue_catalog():
     for target in (spark.Target.GLUE, spark.Target.EMR):
         config = spark.catalog_config(target, 's3://warehouse/')

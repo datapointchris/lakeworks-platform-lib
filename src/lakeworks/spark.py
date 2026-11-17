@@ -13,6 +13,7 @@ import enum
 import logging
 import os
 import sys
+from typing import assert_never
 
 from pyspark.sql import SparkSession
 
@@ -98,7 +99,6 @@ def catalog_config(target: Target, warehouse: str) -> dict[str, str]:
 
     Raises:
         KeyError: If the target is `local` and either endpoint setting is absent.
-        ValueError: If a Target member has no branch here.
     """
     common = {
         'spark.sql.extensions': ICEBERG_EXTENSIONS,
@@ -137,8 +137,8 @@ def catalog_config(target: Target, warehouse: str) -> dict[str, str]:
                 f'spark.sql.catalog.{CATALOG_NAME}.catalog-impl': 'org.apache.iceberg.aws.glue.GlueCatalog',
                 f'spark.sql.catalog.{CATALOG_NAME}.io-impl': 'org.apache.iceberg.aws.s3.S3FileIO',
             }
-
-    raise ValueError(f'No catalog configuration for target {target}')
+        case _ as unreachable:
+            assert_never(unreachable)
 
 
 def session(app: str, warehouse: str | None = None) -> SparkSession:
