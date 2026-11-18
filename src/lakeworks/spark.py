@@ -34,7 +34,7 @@ attributes, so a change to which attributes an event carries raises this number.
 
 
 class Target(enum.Enum):
-    """Where the session runs. Selected by `LAKEWORKS_TARGET`, never inferred."""
+    """Where the session runs. Selected by `LAKEWORKS_TARGET`, and `local` when nothing sets it."""
 
     LOCAL = 'local'
     GLUE = 'glue'
