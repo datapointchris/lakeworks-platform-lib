@@ -1,6 +1,6 @@
-# The runtime AWS Glue 5.0 declares, reproduced rather than approximated: Spark 3.5.4, Python 3.11,
-# Java 17. Debian bookworm's default JDK is 17, so the base image and the JVM pin agree without a
-# backport repository.
+# The runtime AWS Glue 5.0 declares, reproduced rather than approximated. Debian bookworm's default
+# JDK is the version Glue runs, so the base image and the JVM package agree without a backport
+# repository.
 FROM python:3.11-slim-bookworm
 
 # Glue 5.0 ships Iceberg 1.7.1, and the client is held there. The README's local lakehouse section

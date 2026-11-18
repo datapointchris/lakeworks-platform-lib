@@ -114,9 +114,10 @@ the catalog name never has to change.
 A job passes `session` its name and nothing else. A job that branches on its deployment target is
 one whose local and cloud behavior drift apart silently. That drift shows only in production.
 
-**Versions are pinned to AWS Glue 5.0: Spark 3.5.4, Python 3.11, Java 17.** The `dev` extra pins
-pyspark exactly. Python has a floor of 3.11, because a higher floor cannot run in Glue. The
-local-stack image reproduces all three. A local Spark 4.x accepts different Iceberg procedure
+**Versions are pinned to AWS Glue 5.0.** The `dev` extra in `pyproject.toml` pins pyspark
+exactly. Its `requires-python` holds the Python floor at the version Glue ships, because a higher
+floor cannot run in Glue. `tests/local-stack/Dockerfile` reproduces the runtime, Java included. A
+local Spark 4.x accepts different Iceberg procedure
 syntax. A job that passes there then fails in Glue, and the failure reads as an Iceberg bug rather
 than a version mismatch.
 
