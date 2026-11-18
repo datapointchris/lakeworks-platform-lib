@@ -239,9 +239,10 @@ id on each row writes it into a column itself, from `spark.run_id()`.
 
 ## Tests — the default run needs nothing but this repo
 
-`catalog_config` and the assertion builders are pure. They take arguments and return settings or
-SQL. The branches that matter are therefore tested with no Spark session and no AWS account. Keep
-new logic on that side of the line where it can be.
+The assertion builders are pure. They take arguments and return SQL. `catalog_config` builds no
+session and returns settings, though its `local` branch also reads `LAKEWORKS_S3_ENDPOINT` and
+`LAKEWORKS_CATALOG_URI`. The branches that matter are therefore tested with no Spark session and no
+AWS account. Keep new logic on that side of the line where it can be.
 
 Each gated marker is deselected unless its flag is passed:
 
