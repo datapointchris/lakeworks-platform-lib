@@ -11,7 +11,8 @@ tasks:
     desc: Install pyspark at the Glue pin and the dev tools, then the git hooks
     cmds:
       - uv sync --all-extras
-      - uvx pre-commit install --hook-type pre-commit --hook-type commit-msg
+      # The machine's pre-commit, because the hooks need Python 3.13 and this project's floor is 3.11.
+      - pre-commit install --hook-type pre-commit --hook-type commit-msg
 
   test:
     desc: Run the pure suite; the local-stack tier is deselected. Arguments after -- go to pytest
