@@ -100,11 +100,7 @@ def test_adaptive_execution_is_on_for_every_target(monkeypatch):
 
 
 def test_local_requires_its_endpoint_rather_than_defaulting(monkeypatch):
-    """A missing endpoint must raise, not fall back.
-
-    A session silently pointed at the wrong warehouse writes real data to the wrong place, and the
-    caller cannot tell that from success.
-    """
+    """The local target raises KeyError when its S3 endpoint is unset, rather than falling back."""
     monkeypatch.delenv('LAKEWORKS_S3_ENDPOINT', raising=False)
     with pytest.raises(KeyError):
         spark.catalog_config(spark.Target.LOCAL, 's3://warehouse/')
